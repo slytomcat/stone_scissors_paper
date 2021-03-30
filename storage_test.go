@@ -8,13 +8,13 @@ import (
 	"github.com/go-redis/redis"
 )
 
-type config struct {
+type storage_config struct {
 	ConnectOptions redis.UniversalOptions
 }
 
 func Test1_Storage(t *testing.T) {
 
-	config := config{}
+	config := storage_config{}
 	buf, err := ioutil.ReadFile("cnf.json")
 	if err != nil {
 		t.Error(err)
@@ -47,5 +47,7 @@ func Test1_Storage(t *testing.T) {
 		rr.Winner != r.Winner {
 		t.Error("Retrived not the same as stored")
 	}
+
+	t.Logf("Stored: %v \n retrived: %v \n", r, rr)
 
 }
