@@ -2,24 +2,26 @@ package main
 
 import (
 	"errors"
+	"sync"
 
 	uuid "github.com/satori/go.uuid"
 )
 
 const (
-	nothing int = iota
+	// winner selection
+	nobody int = iota
 	first
 	second
 	draw
-
+	// bids
 	stone
 	scissors
 	paper
-
-	nobody = nothing
+	nothing = nobody
 )
 
 var (
+	// rules - determines the winner by first and second bids
 	rules = map[int]map[int]int{
 		stone:    {stone: draw, scissors: first, paper: second},
 		scissors: {stone: second, scissors: draw, paper: first},
@@ -28,27 +30,34 @@ var (
 )
 
 type Round struct {
-	player1 string // token for player1
-	player2 string // token for player1
-	bid1    int    // bid of player1
-	bid2    int    // bid of player1
-	winner  int    // index of the winner or 'nothing' if not all bids done
+	mx      *sync.Mutex // guard for async updates
+	player1 string      // token for player1
+	player2 string      // token for player1
+	bid1    int         // bid of player1
+	bid2    int         // bid of player1
+	winner  int         // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
 }
 
-func NewRound() (Round, error) {
-	return Round{
+func NewRound() *Round {
+	return &Round{
+		mx:      new(sync.Mutex),
 		player1: uuid.NewV4().String(),
 		player2: uuid.NewV4().String(),
 		bid1:    nothing,
 		bid2:    nothing,
 		winner:  nobody,
-	}, nil
+	}
 }
 
 func (r *Round) Step(bid int, token string) (string, error) {
 	if err := r.authorized(token); err != nil {
 		return "", errors.New("Unauthorized")
 	}
+
+	// data racing prevention
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
 	if r.player1 == token {
 		if r.bid1 != 0 {
 			return "", errors.New("bid already done")
@@ -75,6 +84,7 @@ func (r *Round) Result(token string) (string, error) {
 	if err := r.authorized(token); err != nil {
 		return "", errors.New("Unauthorized")
 	}
+
 	// check that winner is determined
 	if r.winner == nobody {
 		return "wait", nil
