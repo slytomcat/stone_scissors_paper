@@ -1,0 +1,7 @@
+{
+    "HostPort": "localhost:8080",
+    "ConnectOptions": {
+        "Password": "some very long password that is provided through ConnectOptions.Password configuration value",
+        "Addrs": [ "redis_host:6379" ]
+    }
+}
