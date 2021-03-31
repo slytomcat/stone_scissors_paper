@@ -36,7 +36,7 @@ Success response: `HTTP 200 OK` with body containing JSON with following paramet
  
 
 
-### Redirect for results:
+### Request for results:
 URL: `<host>[:<port>]/result` 
 
 Method: `POST`
