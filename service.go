@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	redis "github.com/go-redis/redis"
 )
@@ -37,10 +38,12 @@ func doMain() error {
 		return err
 	}
 
-	db, err = NewDatabse(config.ConnectOptions)
+	d, err := NewDatabse(config.ConnectOptions)
 	if err != nil {
 		return err
 	}
+
+	db = NewCache(d, 40*time.Second, 1*time.Second)
 
 	http.Handle("/new", http.HandlerFunc(New))
 	http.Handle("/bid", http.HandlerFunc(Bid))
@@ -52,7 +55,10 @@ func doMain() error {
 
 func New(w http.ResponseWriter, req *http.Request) {
 	round := NewRound()
-	db.Store(round)
+	if err := db.Store(round); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	res, _ := json.Marshal(struct {
 		Round string `json:"round"`
 		User1 string `json:"user1"`

@@ -61,7 +61,7 @@ func (r *Round) Step(bid int, token string) (string, error) {
 	defer r.mx.Unlock()
 
 	if r.Player1 == token {
-		if r.Bid1 != 0 {
+		if r.Bid1 != nothing {
 			return "", errors.New("bid already done")
 		}
 		r.Bid1 = bid
