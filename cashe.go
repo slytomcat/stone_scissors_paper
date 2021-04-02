@@ -57,5 +57,15 @@ func (c *Cache) Retrive(id string) (*Round, error) {
 	if ok {
 		return d.(Data).r, nil
 	}
-	return c.db.Retrive(id)
+	r, err := c.db.Retrive(id)
+	if err != nil {
+		return nil, err
+	}
+
+	c.data.Store(id, Data{
+		r:   r,
+		exp: time.Now().Add(c.defaultexp),
+	})
+
+	return r, nil
 }
