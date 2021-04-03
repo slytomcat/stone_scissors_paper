@@ -39,6 +39,7 @@ type Round struct {
 	Winner  int          `json:"winner"`  // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
 }
 
+// NewRound returns new initialized Round
 func NewRound() *Round {
 	return &Round{
 		mx:      sync.RWMutex{},
@@ -51,6 +52,7 @@ func NewRound() *Round {
 	}
 }
 
+// Step makes the user's bid
 func (r *Round) Step(bid int, user string) string {
 	if err := r.authorized(user); err != nil {
 		return "Unauthorized"
@@ -85,6 +87,7 @@ func (r *Round) Step(bid int, user string) string {
 	return "wait"
 }
 
+// Result returns the round result
 func (r *Round) Result(user string) string {
 	if err := r.authorized(user); err != nil {
 		return "Unauthorized"
@@ -95,6 +98,7 @@ func (r *Round) Result(user string) string {
 	return r.result(user)
 }
 
+// result is not protected from data racing. It should called after mx.Lock() or mx.RLock()
 func (r *Round) result(user string) string {
 	// check that winner is determined
 	if r.Winner == nobody {
@@ -119,6 +123,7 @@ func (r *Round) result(user string) string {
 
 }
 
+// authorized checks the user
 func (r *Round) authorized(token string) error {
 	if token != r.Player1 && token != r.Player2 {
 		return errors.New("Unauthorized")
