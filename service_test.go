@@ -6,12 +6,15 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func Test_success(t *testing.T) {
-	go t.Log(doMain())
+	go doMain()
 
-	resp, err := http.Get("localhost:8080/new")
+	<-time.After(time.Millisecond * 50)
+
+	resp, err := http.Get("http://localhost:8080/new")
 	if err != nil {
 		t.Error(err)
 	}
@@ -31,6 +34,8 @@ func Test_success(t *testing.T) {
 		t.Error(err)
 	}
 
+	t.Logf("Received new round: %v", res)
+
 	req, _ := json.Marshal(struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
@@ -41,7 +46,7 @@ func Test_success(t *testing.T) {
 		Bid:   "paper",
 	})
 
-	resp, err = http.Post("localhost:8080/bid", "application/json", bytes.NewReader(req))
+	resp, err = http.Post("http://localhost:8080/bid", "application/json", bytes.NewReader(req))
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,6 +60,8 @@ func Test_success(t *testing.T) {
 		t.Error("Unexpected response")
 	}
 
+	t.Logf("Received step1: %v", data)
+
 	req, _ = json.Marshal(struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
@@ -65,7 +72,7 @@ func Test_success(t *testing.T) {
 		Bid:   "stone",
 	})
 
-	resp, err = http.Post("localhost:8080/bid", "application/json", bytes.NewReader(req))
+	resp, err = http.Post("http://localhost:8080/bid", "application/json", bytes.NewReader(req))
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,6 +86,8 @@ func Test_success(t *testing.T) {
 		t.Error("Unexpected response")
 	}
 
+	t.Logf("Received step1: %v", data)
+
 	req, _ = json.Marshal(struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
@@ -87,7 +96,7 @@ func Test_success(t *testing.T) {
 		User:  res.User1,
 	})
 
-	resp, err = http.Post("localhost:8080/result", "application/json", bytes.NewReader(req))
+	resp, err = http.Post("http://localhost:8080/result", "application/json", bytes.NewReader(req))
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,5 +109,7 @@ func Test_success(t *testing.T) {
 	if string(data) != `{"respose":"you won"}` {
 		t.Error("Unexpected response")
 	}
+
+	t.Logf("Received result: %v", data)
 
 }

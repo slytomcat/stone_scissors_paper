@@ -19,47 +19,29 @@ func Test1_NewRound(t *testing.T) {
 
 	t.Logf("received round:%v+", test_round)
 
-	res, err := test_round.Result(test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res := test_round.Result(test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(paper, test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Step(paper, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(stone, test_round.Player1)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(stone, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(stone, test_round.Player2)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Step(stone, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(paper, test_round.Player2)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(paper, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Result(test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Result(test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
 }
 
@@ -73,40 +55,29 @@ func Test2_NewRound(t *testing.T) {
 
 	t.Logf("received round:%v+", test_round)
 
-	res, err := test_round.Step(scissors, test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res := test_round.Step(-1, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received round:%v+", res)
 
-	res, err = test_round.Step(stone, test_round.Player1)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(scissors, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(stone, test_round.Player2)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Step(stone, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(paper, test_round.Player2)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(stone, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Result(test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Step(paper, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
+
+	res = test_round.Result(test_round.Player1)
+
+	t.Logf("received result:%s", res)
 
 }
 
@@ -120,40 +91,25 @@ func Test3_NewRound(t *testing.T) {
 
 	t.Logf("received round:%v+", test_round)
 
-	res, err := test_round.Step(scissors, test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res := test_round.Step(scissors, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(stone, test_round.Player1)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(stone, test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(scissors, test_round.Player2)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Step(scissors, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Step(paper, test_round.Player2)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Step(paper, test_round.Player2)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Result(test_round.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res = test_round.Result(test_round.Player1)
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 }
 
 func Test5_NewRound_async(t *testing.T) {
@@ -170,50 +126,50 @@ func Test5_NewRound_async(t *testing.T) {
 	wg.Add(8)
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(scissors, test_round.Player1)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(scissors, test_round.Player1)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(paper, test_round.Player1)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(paper, test_round.Player1)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(stone, test_round.Player1)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(stone, test_round.Player1)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(scissors, test_round.Player2)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(scissors, test_round.Player2)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(stone, test_round.Player2)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(stone, test_round.Player2)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Step(paper, test_round.Player2)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Step(paper, test_round.Player2)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Result(test_round.Player1)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Result(test_round.Player1)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res, err := r.Result(test_round.Player2)
-		t.Logf("received result:%s, err:%v", res, err)
+		res := r.Result(test_round.Player2)
+		t.Logf("received result:%s", res)
 	}(test_round)
 
 	wg.Wait()
@@ -227,19 +183,13 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 
 	t.Logf("received round:%v+", test_round)
 
-	res, err := test_round.Step(scissors, uuid.NewV4().String())
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res := test_round.Step(scissors, uuid.NewV4().String())
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 
-	res, err = test_round.Result(uuid.NewV4().String())
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	res = test_round.Result(uuid.NewV4().String())
 
-	t.Logf("received result:%s, err:%v", res, err)
+	t.Logf("received result:%s", res)
 }
 
 func Test9_authorized(t *testing.T) {

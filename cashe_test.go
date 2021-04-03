@@ -29,10 +29,8 @@ func Test_all(t *testing.T) {
 		t.Error(err)
 	}
 
-	res, err := r.Step(stone, r.Player1)
-	if err != nil {
-		t.Error(err)
-	}
+	res := r.Step(stone, r.Player1)
+
 	if res != "wait" {
 		t.Error("wrong replay")
 	}
@@ -43,10 +41,7 @@ func Test_all(t *testing.T) {
 	}
 
 	t.Log(r1)
-	res, err = r1.Step(paper, r.Player1)
-	if err != nil {
-		t.Log(err)
-	}
+	res = r1.Step(paper, r.Player1)
 
 	<-time.After(time.Second)
 

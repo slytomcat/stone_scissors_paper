@@ -16,7 +16,10 @@ type config struct {
 	ConnectOptions redis.UniversalOptions
 }
 
-var db Database
+var (
+	db      Database
+	version string
+)
 
 func main() {
 	err := doMain()
@@ -49,7 +52,8 @@ func doMain() error {
 	http.Handle("/bid", http.HandlerFunc(Bid))
 	http.Handle("/result", http.HandlerFunc(Result))
 
-	fmt.Printf("Starting service at %s", config.HostPort)
+	fmt.Printf("Stone Scissors Paper game service v.%s\n", version)
+	fmt.Printf("Starting service at %s\n", config.HostPort)
 	return http.ListenAndServe(config.HostPort, nil)
 }
 
@@ -68,6 +72,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 		User1: round.Player1,
 		User2: round.Player2,
 	})
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
 
@@ -101,7 +106,7 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res, err := round.Step(bid, input.User)
+	res := round.Step(bid, input.User)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -119,6 +124,7 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 		Respose: res,
 	})
 
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
 }
 
@@ -143,11 +149,8 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	res, err := round.Result(input.User)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+
+	res := round.Result(input.User)
 
 	response, _ := json.Marshal(struct {
 		Respose string `json:"respose"`
@@ -155,6 +158,7 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		Respose: res,
 	})
 
+	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
 }
 

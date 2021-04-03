@@ -30,18 +30,18 @@ var (
 )
 
 type Round struct {
-	mx      sync.Mutex // guard for async updates
-	ID      string     `json:"id"`      // round id
-	Player1 string     `json:"player1"` // token for player1
-	Player2 string     `json:"player2"` // token for player1
-	Bid1    int        `json:"bid1"`    // bid of player1
-	Bid2    int        `json:"bid2"`    // bid of player1
-	Winner  int        `json:"winner"`  // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
+	mx      sync.RWMutex // guard for async updates
+	ID      string       `json:"id"`      // round id
+	Player1 string       `json:"player1"` // token for player1
+	Player2 string       `json:"player2"` // token for player1
+	Bid1    int          `json:"bid1"`    // bid of player1
+	Bid2    int          `json:"bid2"`    // bid of player1
+	Winner  int          `json:"winner"`  // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
 }
 
 func NewRound() *Round {
 	return &Round{
-		mx:      sync.Mutex{},
+		mx:      sync.RWMutex{},
 		ID:      uuid.NewV4().String(),
 		Player1: uuid.NewV4().String(),
 		Player2: uuid.NewV4().String(),
@@ -51,24 +51,27 @@ func NewRound() *Round {
 	}
 }
 
-func (r *Round) Step(bid int, token string) (string, error) {
-	if err := r.authorized(token); err != nil {
-		return "", errors.New("Unauthorized")
+func (r *Round) Step(bid int, user string) string {
+	if err := r.authorized(user); err != nil {
+		return "Unauthorized"
+	}
+	if bid != paper && bid != scissors && bid != stone {
+		return "wrong bid"
 	}
 
 	// data racing prevention
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	if r.Player1 == token {
+	if r.Player1 == user {
 		if r.Bid1 != nothing {
-			return "", errors.New("bid already done")
+			return "bid already done"
 		}
 		r.Bid1 = bid
 	}
-	if r.Player2 == token {
+	if r.Player2 == user {
 		if r.Bid2 != nothing {
-			return "", errors.New("bid already done")
+			return "bid already done"
 		}
 		r.Bid2 = bid
 	}
@@ -76,37 +79,43 @@ func (r *Round) Step(bid int, token string) (string, error) {
 		// find the winner
 		r.Winner = rules[r.Bid1][r.Bid2]
 
-		return r.Result(token)
+		return r.result(user)
 	}
 
-	return "wait", nil
+	return "wait"
 }
 
-func (r *Round) Result(token string) (string, error) {
-	if err := r.authorized(token); err != nil {
-		return "", errors.New("Unauthorized")
+func (r *Round) Result(user string) string {
+	if err := r.authorized(user); err != nil {
+		return "Unauthorized"
 	}
+	// data racing prevention
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+	return r.result(user)
+}
 
+func (r *Round) result(user string) string {
 	// check that winner is determined
 	if r.Winner == nobody {
-		return "wait", nil
+		return "wait"
 	}
 	// check for draw
 	if r.Winner == draw {
-		return "draw", nil
+		return "draw"
 	}
-	if token == r.Player1 {
+	if user == r.Player1 {
 		if r.Winner == first {
-			return "you won", nil
+			return "you won"
 		}
-		return "you lose", nil
+		return "you lose"
 	}
 
 	// token is authorized and it is not first player -> it is second player
 	if r.Winner == second {
-		return "you won", nil
+		return "you won"
 	}
-	return "you lose", nil
+	return "you lose"
 
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/go-redis/redis"
 )
@@ -49,5 +50,21 @@ func Test1_Storage(t *testing.T) {
 	}
 
 	t.Logf("Stored: %v \n retrived: %v \n", r, rr)
+
+	// check mutex in retrived round
+	rr.mx.Lock()
+	go rr.Step(stone, rr.Player1)
+	go rr.Step(scissors, rr.Player1)
+	go rr.Step(paper, rr.Player1)
+	go rr.Step(stone, rr.Player2)
+	go rr.Step(scissors, rr.Player2)
+	go rr.Step(paper, rr.Player2)
+	rr.mx.Unlock()
+
+	<-time.After(time.Microsecond)
+	rr.mx.Lock()
+	rr.mx.Unlock()
+	res := rr.Result(rr.Player1)
+	t.Logf("Result for first user aster game: %s \n", res)
 
 }
