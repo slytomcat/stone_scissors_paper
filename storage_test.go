@@ -38,7 +38,7 @@ func Test1_Storage(t *testing.T) {
 		t.Error(err)
 	}
 
-	rr, err := db.Retrive(r.ID)
+	rr, err := db.Retrieve(r.ID)
 
 	if rr.ID != r.ID ||
 		rr.Bid1 != r.Bid1 ||

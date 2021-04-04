@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	redis "github.com/go-redis/redis"
@@ -57,6 +56,7 @@ func doMain() error {
 	return http.ListenAndServe(config.HostPort, nil)
 }
 
+// New realizes the request for new round
 func New(w http.ResponseWriter, req *http.Request) {
 	round := NewRound()
 	if err := db.Store(round); err != nil {
@@ -76,6 +76,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 	w.Write(res)
 }
 
+// Bid realizes the request for the new bid of user
 func Bid(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -94,15 +95,15 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bid := bidEncode(input.Bid)
-	if bid < 0 {
-		w.WriteHeader(http.StatusBadRequest)
+	round, err := db.Retrieve(input.Round)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	round, err := db.Retrive(input.Round)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	bid := round.bidEncode(input.Bid)
+	if bid < 0 {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -128,6 +129,7 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 	w.Write(response)
 }
 
+// Result realizes the request for result of round
 func Result(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -144,7 +146,7 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	round, err := db.Retrive(input.Round)
+	round, err := db.Retrieve(input.Round)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -160,17 +162,4 @@ func Result(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
-}
-
-func bidEncode(bid string) int {
-	switch strings.ToLower(bid) {
-	case "paper":
-		return paper
-	case "scissors":
-		return scissors
-	case "stone":
-		return stone
-	default:
-		return -1
-	}
 }

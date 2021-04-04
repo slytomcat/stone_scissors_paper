@@ -8,15 +8,18 @@ import (
 	redis "github.com/go-redis/redis"
 )
 
+// Database is an interface for the persistence layer
 type Database interface {
 	Store(*Round) error
-	Retrive(string) (*Round, error)
+	Retrieve(string) (*Round, error)
 }
 
+// redisDB is a Redis implementation of Database interface
 type redisDB struct {
 	r redis.UniversalClient
 }
 
+// NewDatabse returns a new instance of Database interface implementing the persistence layer via Redis
 func NewDatabse(opt redis.UniversalOptions) (Database, error) {
 	db := redis.NewUniversalClient(&opt)
 	DB := &redisDB{db}
@@ -27,11 +30,14 @@ func NewDatabse(opt redis.UniversalOptions) (Database, error) {
 	return DB, nil
 }
 
+// Store stores data to database
 func (db *redisDB) Store(round *Round) error {
 	data, _ := json.Marshal(round)
 	return db.r.Set(round.ID, data, time.Hour*8760).Err()
 }
-func (db *redisDB) Retrive(id string) (*Round, error) {
+
+// Retrieve reads the data from database
+func (db *redisDB) Retrieve(id string) (*Round, error) {
 	data, err := db.r.Get(id).Result()
 	if err != nil {
 		return nil, err

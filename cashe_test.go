@@ -13,7 +13,7 @@ func (d testDB) Store(r *Round) error {
 	return nil
 }
 
-func (d testDB) Retrive(key string) (*Round, error) {
+func (d testDB) Retrieve(key string) (*Round, error) {
 	fmt.Printf("retrive: %s", key)
 	return NewRound(), nil
 }
@@ -35,7 +35,7 @@ func Test_all(t *testing.T) {
 		t.Error("wrong replay")
 	}
 
-	r1, err := c.Retrive(r.ID)
+	r1, err := c.Retrieve(r.ID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -45,7 +45,7 @@ func Test_all(t *testing.T) {
 
 	<-time.After(time.Second)
 
-	r2, err := c.Retrive(r.ID)
+	r2, err := c.Retrieve(r.ID)
 	if err != nil {
 		t.Error(err)
 	}

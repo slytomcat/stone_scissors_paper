@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	uuid "github.com/satori/go.uuid"
@@ -29,6 +31,7 @@ var (
 	}
 )
 
+// Round is a sigle raund game provider
 type Round struct {
 	mx      sync.RWMutex // guard for async updates
 	ID      string       `json:"id"`      // round id
@@ -46,9 +49,9 @@ func NewRound() *Round {
 		ID:      uuid.NewV4().String(),
 		Player1: uuid.NewV4().String(),
 		Player2: uuid.NewV4().String(),
-		Bid1:    0,
-		Bid2:    0,
-		Winner:  0,
+		Bid1:    nothing,
+		Bid2:    nothing,
+		Winner:  nobody,
 	}
 }
 
@@ -98,7 +101,8 @@ func (r *Round) Result(user string) string {
 	return r.result(user)
 }
 
-// result is not protected from data racing. It should called after mx.Lock() or mx.RLock()
+// result is not protected against data racing.
+// It have to be called after mx.Lock() or mx.RLock()
 func (r *Round) result(user string) string {
 	// check that winner is determined
 	if r.Winner == nobody {
@@ -108,19 +112,24 @@ func (r *Round) result(user string) string {
 	if r.Winner == draw {
 		return "draw"
 	}
+
+	resp := ""
+	if r.Winner == first && user == r.Player1 ||
+		r.Winner == second && user == r.Player2 {
+		resp = "You won"
+	} else {
+		resp = "You lose"
+	}
+
+	ybid, rbid := nothing, nothing
 	if user == r.Player1 {
-		if r.Winner == first {
-			return "you won"
-		}
-		return "you lose"
+		ybid, rbid = r.Bid1, r.Bid2
+	} else {
+		ybid, rbid = r.Bid2, r.Bid1
+
 	}
 
-	// token is authorized and it is not first player -> it is second player
-	if r.Winner == second {
-		return "you won"
-	}
-	return "you lose"
-
+	return fmt.Sprintf("%s: your bid: %s, the rival's bid: %s", resp, r.bidDecode(ybid), r.bidDecode(rbid))
 }
 
 // authorized checks the user
@@ -129,4 +138,29 @@ func (r *Round) authorized(token string) error {
 		return errors.New("Unauthorized")
 	}
 	return nil
+}
+
+func (r *Round) bidDecode(bid int) string {
+	switch bid {
+	case paper:
+		return "Paper"
+	case scissors:
+		return "Scissors"
+	case stone:
+		return "Stone"
+	default:
+		return ""
+	}
+}
+func (r *Round) bidEncode(bid string) int {
+	switch strings.ToLower(bid) {
+	case "paper":
+		return paper
+	case "scissors":
+		return scissors
+	case "stone":
+		return stone
+	default:
+		return -1
+	}
 }

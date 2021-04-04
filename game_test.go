@@ -177,6 +177,25 @@ func Test5_NewRound_async(t *testing.T) {
 	t.Log(test_round)
 }
 
+func Test7_bidEncodeDecode(t *testing.T) {
+	test_round = NewRound()
+
+	if test_round.bidDecode(stone) != "Stone" ||
+		test_round.bidDecode(scissors) != "Scissors" ||
+		test_round.bidDecode(paper) != "Paper" ||
+		test_round.bidDecode(nothing) != "" {
+		t.Error("wrong bids decoding")
+	}
+
+	if test_round.bidEncode("Stone") != stone ||
+		test_round.bidEncode("scIssors") != scissors ||
+		test_round.bidEncode("papEr") != paper ||
+		test_round.bidEncode("nOthing") != -1 {
+		t.Error("wrong bids encoding")
+	}
+
+}
+
 func Test8_NewRoundUnauthorized(t *testing.T) {
 
 	test_round = NewRound()
@@ -193,6 +212,8 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 }
 
 func Test9_authorized(t *testing.T) {
+	test_round = NewRound()
+
 	err := test_round.authorized(test_round.Player1)
 	if err != nil {
 		t.Error("first user unauthorized")
