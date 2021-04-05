@@ -18,7 +18,7 @@ Configuration file have to be named as `cnf.json` and it should be in the same f
 
 - `HostPort`: the value in form "host:port" that determines the host and port on which the service have to listen for requests.
 - `ConnectOptions`: Redis database connection options:
-    - `Addrs`: values in form "host:port" that points to host and port where the Redis server runs.
+    - `Addrs`: array of string values in form "host:port" that points to host and port where the Redis server runs.
     - `Password`: password for secure connection to Redis database
     - ... all possible connection options can be found [here](https://godoc.org/github.com/go-redis/redis#UniversalOptions)
 
