@@ -41,8 +41,8 @@ func Test1_Storage(t *testing.T) {
 	rr, err := db.Retrieve(r.ID)
 
 	if rr.ID != r.ID ||
-		rr.Bid1 != r.Bid1 ||
-		rr.Bid2 != r.Bid2 ||
+		rr.Bet1 != r.Bet1 ||
+		rr.Bet2 != r.Bet2 ||
 		rr.Player1 != r.Player1 ||
 		rr.Player2 != r.Player2 ||
 		rr.Winner != r.Winner {

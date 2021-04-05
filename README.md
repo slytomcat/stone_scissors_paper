@@ -10,11 +10,13 @@ And exactly the same random string have to be written into configuration file as
 
 Configuration file value ConnectOptions.Addrs have to contain at least one value in form "host:port" that points to host and port where the Redis server runs.
 
+## Configuration
+
 Configuration file can be made from `cnf.json.sample` sample file. But You have to change the values in it according to the running environment.
 
 Configuration file have to be named as `cnf.json` and it should be in the same folder from where service executable is running.
 
-## Configuration values
+### Configuration values
 
 - `HostPort`: the value in form "host:port" that determines the host and port on which the service have to listen for requests.
 - `ConnectOptions`: Redis database connection options:
@@ -54,23 +56,25 @@ Response: `HTTP 200 OK` with body containing JSON with following parameters:
 - `user2`: token of second user
 
 
-### Request for bid:
+### Request for placing a bet:
 
-URL: `<host>[:<port>]/bid`
+URL: `<host>[:<port>]/bet`
 
 Method: `POST`
 
 Request body: JSON with following parameter:
 
 - `round`: round id
-- `user`: token of the user that makes a bid
-- `bid`: one of `paper`|`stone`|`scissors` 
+- `user`: token of the user that places a bet
+- `bet`: one of `paper`|`stone`|`scissors` 
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
-- `response`: one of: `wait` - wait for second bid to be done, `you won ...`|`you lose ...`|`draw ...` - game result.
-
-The game result also contains the current user and the rival's bids. 
+- `response`: one of: 
+    - `wait` - wait for the second bet to be placed
+    - `you won ...`|`you lose ...`|`draw ...` - game result, it result also contains the current user and the rival's bets.
+    - `bet has already been placed` - the error message when player trying to place more than one bet in the round.
+    - `unauthorized` - the error message when player is not authorized to place a bet.
  
 
 
@@ -86,9 +90,7 @@ Request body: JSON with following parameter:
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
-- `response`: one of: `wait` - wait for all bids to be done, `you won...`|`you lose...`|`draw...` - game result.
-
-THe game result also contains the current user and the rival's bids. 
+- `response`: the same values as in response on the request for bet.
 
 
 

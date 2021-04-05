@@ -180,17 +180,17 @@ func Test5_NewRound_async(t *testing.T) {
 func Test7_bidEncodeDecode(t *testing.T) {
 	test_round = NewRound()
 
-	if test_round.bidDecode(stone) != "Stone" ||
-		test_round.bidDecode(scissors) != "Scissors" ||
-		test_round.bidDecode(paper) != "Paper" ||
-		test_round.bidDecode(nothing) != "" {
+	if test_round.betDecode(stone) != "Stone" ||
+		test_round.betDecode(scissors) != "Scissors" ||
+		test_round.betDecode(paper) != "Paper" ||
+		test_round.betDecode(nothing) != "" {
 		t.Error("wrong bids decoding")
 	}
 
-	if test_round.bidEncode("Stone") != stone ||
-		test_round.bidEncode("scIssors") != scissors ||
-		test_round.bidEncode("papEr") != paper ||
-		test_round.bidEncode("nOthing") != -1 {
+	if test_round.betEncode("Stone") != stone ||
+		test_round.betEncode("scIssors") != scissors ||
+		test_round.betEncode("papEr") != paper ||
+		test_round.betEncode("nOthing") != -1 {
 		t.Error("wrong bids encoding")
 	}
 

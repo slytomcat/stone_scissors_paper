@@ -48,7 +48,7 @@ func doMain() error {
 	db = NewCache(d, 40*time.Second, 1*time.Second)
 
 	http.Handle("/new", http.HandlerFunc(New))
-	http.Handle("/bid", http.HandlerFunc(Bid))
+	http.Handle("/bet", http.HandlerFunc(Bet))
 	http.Handle("/result", http.HandlerFunc(Result))
 
 	fmt.Printf("Stone Scissors Paper game service v.%s\n", version)
@@ -76,8 +76,8 @@ func New(w http.ResponseWriter, req *http.Request) {
 	w.Write(res)
 }
 
-// Bid realizes the request for the new bid of user
-func Bid(w http.ResponseWriter, req *http.Request) {
+// Bet realizes the request for the new bet of user
+func Bet(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -87,10 +87,10 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 	input := struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
-		Bid   string `json:"bid"`
+		Bet   string `json:"bet"`
 	}{}
 	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.Bid == "" || input.User == "" {
+	if err != nil || input.Round == "" || input.Bet == "" || input.User == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -101,13 +101,13 @@ func Bid(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bid := round.bidEncode(input.Bid)
-	if bid < 0 {
+	bet := round.betEncode(input.Bet)
+	if bet < 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	res := round.Step(bid, input.User)
+	res := round.Step(bet, input.User)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

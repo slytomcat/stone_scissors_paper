@@ -39,14 +39,14 @@ func Test_success(t *testing.T) {
 	req, _ := json.Marshal(struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
-		Bid   string `json:"bid"`
+		Bet   string `json:"bet"`
 	}{
 		Round: res.Round,
 		User:  res.User1,
-		Bid:   "paper",
+		Bet:   "paper",
 	})
 
-	resp, err = http.Post("http://localhost:8080/bid", "application/json", bytes.NewReader(req))
+	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
 	if err != nil {
 		t.Error(err)
 	}
@@ -60,19 +60,19 @@ func Test_success(t *testing.T) {
 		t.Error("Unexpected response")
 	}
 
-	t.Logf("Received step1: %v", data)
+	t.Logf("Received step1: %s", data)
 
 	req, _ = json.Marshal(struct {
 		Round string `json:"round"`
 		User  string `json:"user"`
-		Bid   string `json:"bid"`
+		Bet   string `json:"bet"`
 	}{
 		Round: res.Round,
 		User:  res.User2,
-		Bid:   "stone",
+		Bet:   "stone",
 	})
 
-	resp, err = http.Post("http://localhost:8080/bid", "application/json", bytes.NewReader(req))
+	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
 	if err != nil {
 		t.Error(err)
 	}
@@ -82,11 +82,11 @@ func Test_success(t *testing.T) {
 		t.Error(err)
 	}
 
-	if string(data) != `{"respose":"you lose"}` {
-		t.Error("Unexpected response")
+	if string(data) != `{"respose":"You lose: your bet: Stone, the rival's bet: Paper"}` {
+		t.Errorf("Unexpected response: %s", data)
 	}
 
-	t.Logf("Received step1: %v", data)
+	t.Logf("Received step1: %s", data)
 
 	req, _ = json.Marshal(struct {
 		Round string `json:"round"`
@@ -106,10 +106,10 @@ func Test_success(t *testing.T) {
 		t.Error(err)
 	}
 
-	if string(data) != `{"respose":"you won"}` {
-		t.Error("Unexpected response")
+	if string(data) != `{"respose":"You won: your bet: Paper, the rival's bet: Stone"}` {
+		t.Errorf("Unexpected response: %s", data)
 	}
 
-	t.Logf("Received result: %v", data)
+	t.Logf("Received result: %s", data)
 
 }

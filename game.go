@@ -37,8 +37,8 @@ type Round struct {
 	ID      string       `json:"id"`      // round id
 	Player1 string       `json:"player1"` // token for player1
 	Player2 string       `json:"player2"` // token for player1
-	Bid1    int          `json:"bid1"`    // bid of player1
-	Bid2    int          `json:"bid2"`    // bid of player1
+	Bet1    int          `json:"bid1"`    // bid of player1
+	Bet2    int          `json:"bid2"`    // bid of player1
 	Winner  int          `json:"winner"`  // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
 }
 
@@ -49,40 +49,37 @@ func NewRound() *Round {
 		ID:      uuid.NewV4().String(),
 		Player1: uuid.NewV4().String(),
 		Player2: uuid.NewV4().String(),
-		Bid1:    nothing,
-		Bid2:    nothing,
+		Bet1:    nothing,
+		Bet2:    nothing,
 		Winner:  nobody,
 	}
 }
 
 // Step makes the user's bid
-func (r *Round) Step(bid int, user string) string {
+func (r *Round) Step(bet int, user string) string {
 	if err := r.authorized(user); err != nil {
 		return "Unauthorized"
 	}
-	if bid != paper && bid != scissors && bid != stone {
-		return "wrong bid"
+	if bet != paper && bet != scissors && bet != stone {
+		return "wrong bet"
 	}
 
 	// data racing prevention
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
+	if r.Player1 == user && r.Bet1 != nothing || r.Player2 == user && r.Bet2 != nothing {
+		return "bet has already been placed"
+	}
+
 	if r.Player1 == user {
-		if r.Bid1 != nothing {
-			return "bid already done"
-		}
-		r.Bid1 = bid
+		r.Bet1 = bet
+	} else {
+		r.Bet2 = bet
 	}
-	if r.Player2 == user {
-		if r.Bid2 != nothing {
-			return "bid already done"
-		}
-		r.Bid2 = bid
-	}
-	if r.Bid1 != nothing && r.Bid2 != nothing {
+	if r.Bet1 != nothing && r.Bet2 != nothing {
 		// find the winner
-		r.Winner = rules[r.Bid1][r.Bid2]
+		r.Winner = rules[r.Bet1][r.Bet2]
 
 		return r.result(user)
 	}
@@ -121,15 +118,15 @@ func (r *Round) result(user string) string {
 		resp = "You lose"
 	}
 
-	ybid, rbid := nothing, nothing
+	ybet, rbet := nothing, nothing
 	if user == r.Player1 {
-		ybid, rbid = r.Bid1, r.Bid2
+		ybet, rbet = r.Bet1, r.Bet2
 	} else {
-		ybid, rbid = r.Bid2, r.Bid1
+		ybet, rbet = r.Bet2, r.Bet1
 
 	}
 
-	return fmt.Sprintf("%s: your bid: %s, the rival's bid: %s", resp, r.bidDecode(ybid), r.bidDecode(rbid))
+	return fmt.Sprintf("%s: your bet: %s, the rival's bet: %s", resp, r.betDecode(ybet), r.betDecode(rbet))
 }
 
 // authorized checks the user
@@ -140,8 +137,8 @@ func (r *Round) authorized(token string) error {
 	return nil
 }
 
-func (r *Round) bidDecode(bid int) string {
-	switch bid {
+func (r *Round) betDecode(bet int) string {
+	switch bet {
 	case paper:
 		return "Paper"
 	case scissors:
@@ -152,8 +149,8 @@ func (r *Round) bidDecode(bid int) string {
 		return ""
 	}
 }
-func (r *Round) bidEncode(bid string) int {
-	switch strings.ToLower(bid) {
+func (r *Round) betEncode(bet string) int {
+	switch strings.ToLower(bet) {
 	case "paper":
 		return paper
 	case "scissors":
