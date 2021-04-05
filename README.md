@@ -10,9 +10,19 @@ And exactly the same random string have to be written into configuration file as
 
 Configuration file value ConnectOptions.Addrs have to contain at least one value in form "host:port" that points to host and port where the Redis server runs.
 
+Configuration file can be made from `cnf.json.sample` sample file. But You have to change the values in it according to the running environment.
+
 Configuration file have to be named as `cnf.json` and it should be in the same folder from where service executable is running.
 
-## Building the docker image
+## Configuration values
+
+- `HostPort`: the value in form "host:port" that determines the host and port on which the service have to listen for requests.
+- `ConnectOptions`: Redis database connection options:
+    - `Addrs`: values in form "host:port" that points to host and port where the Redis server runs.
+    - `Password`: password for secure connection to Redis database
+    - ... all possible connection options can be found [here](https://godoc.org/github.com/go-redis/redis#UniversalOptions)
+
+## Building and running the docker image
 
 Golang executable can run into docker image created as FROM SCRATCH (see example `dockerfile`). For this purpose the executable have to be build without dependencies to clib (CGO_ENABLED=0).
 
