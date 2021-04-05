@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	redis "github.com/go-redis/redis"
+	"github.com/go-redis/redis"
 )
 
 // Database is an interface for the persistence layer
