@@ -33,9 +33,11 @@ or
     ./build.sh
     docker build -f dockerfile --tag stone_scissors_paper
 
-Then you can run service in docker by command (NOTE: change `<full path to configuration file>` to real path to config in this command before run it):
+Then you can run service in docker by command (NOTE: Change `<full path to configuration file>` to real path to config in this command before run it):
 
-    docker run --name stone_scissors_paper -d -v <full path to configuration file>:/opt/game/cnf.json stone_scissors_paper
+    docker run --name stone_scissors_paper -d -p 8080:8080 -v <full path to configuration file>:/opt/game/cnf.json stone_scissors_paper
+
+You also should correct exposed port (`-p 8080:8080`) according to `HostPort` configuration value.
 
 ## Service API
 
