@@ -18,8 +18,12 @@ Golang executable can run into docker image created as FROM SCRATCH (see example
 
     CGO_ENABLED=0 go build
     docker build -f dockerfile --tag stone_scissors_paper
+or
 
- Then you can run service in docker by command (NOTE: change `<full path to configuration file>` to real path to config in this command before run it):
+    ./build.sh
+    docker build -f dockerfile --tag stone_scissors_paper
+
+Then you can run service in docker by command (NOTE: change `<full path to configuration file>` to real path to config in this command before run it):
 
     docker run --name stone_scissors_paper -d -v <full path to configuration file>:/opt/game/cnf.json stone_scissors_paper
 
