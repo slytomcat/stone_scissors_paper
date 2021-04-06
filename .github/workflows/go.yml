@@ -100,5 +100,5 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           
-          docker build . --file dockerfile --tag $IMAGE_ID
+          docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
