@@ -63,9 +63,8 @@ jobs:
 
   # Push image to GitHub Packages.
   push:
-    # Ensure test job passes before pushing image.
     needs: build
-
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env: 
       IMAGE_NAME: 'stone_scissors_paper'
@@ -88,17 +87,7 @@ jobs:
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
 
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=latest
 
-          # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "master" ] && VERSION=latest
-
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-          
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
