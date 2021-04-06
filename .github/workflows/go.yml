@@ -60,6 +60,13 @@ jobs:
           name: build_artifacts
           path: stone_scissors_paper
 
+      - name: Check
+        shell: bash
+        run: |
+          echo ${{ github.ref }}
+          echo ${{ github.ref == 'refs/heads/main' }}
+      
+
 
   # Push image to GitHub Packages.
   push:
