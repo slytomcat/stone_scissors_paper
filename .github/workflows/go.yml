@@ -78,13 +78,10 @@ jobs:
         with:
           name: build_artifacts
 
-      - name: Build image
-        run: docker build . --file dockerfile --tag $IMAGE_NAME
-
       - name: Log into registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
 
-      - name: Push image
+      - name: Build and push image
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
@@ -103,4 +100,5 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           
-          docker push docker.pkg.github.com/slytomcat/$IMAGE_NAME:$VERSION
+          docker build . --file dockerfile --tag $IMAGE_ID
+          docker push $IMAGE_ID:$VERSION
