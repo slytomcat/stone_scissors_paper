@@ -62,14 +62,9 @@ jobs:
 
       - name: Check
         shell: bash
+        if: github.ref == 'refs/pull/8/merge'
         run: |
           echo ${{ github.ref }}
-          if [ github.ref == 'refs/pull/8/merge' ] 
-          then
-            echo Match
-          else
-            echo NOTMATCH
-          fi
       
 
 
