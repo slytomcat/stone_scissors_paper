@@ -122,55 +122,59 @@ func Test5_NewRound_async(t *testing.T) {
 
 	t.Logf("received round:%v+", test_round)
 
+	//test_round.mx.Lock()
+
 	var wg sync.WaitGroup
 	wg.Add(8)
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(scissors, test_round.Player1)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(paper, test_round.Player1)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(stone, test_round.Player1)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(scissors, test_round.Player2)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(stone, test_round.Player2)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Step(paper, test_round.Player2)
-		t.Logf("received result:%s", res)
+		t.Logf("received S result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Result(test_round.Player1)
-		t.Logf("received result:%s", res)
+		t.Logf("received R result:%s", res)
 	}(test_round)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Result(test_round.Player2)
-		t.Logf("received result:%s", res)
+		t.Logf("received R result:%s", res)
 	}(test_round)
+
+	//test_round.mx.Unlock()
 
 	wg.Wait()
 

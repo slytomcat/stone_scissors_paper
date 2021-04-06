@@ -105,17 +105,17 @@ func (r *Round) result(user string) string {
 	if r.Winner == nobody {
 		return "wait"
 	}
-	// check for draw
-	if r.Winner == draw {
-		return "draw"
-	}
-
 	resp := ""
-	if r.Winner == first && user == r.Player1 ||
-		r.Winner == second && user == r.Player2 {
-		resp = "You won"
+
+	if r.Winner == draw {
+		resp = "draw"
 	} else {
-		resp = "You lose"
+		if r.Winner == first && user == r.Player1 ||
+			r.Winner == second && user == r.Player2 {
+			resp = "You won"
+		} else {
+			resp = "You lose"
+		}
 	}
 
 	ybet, rbet := nothing, nothing
@@ -123,7 +123,6 @@ func (r *Round) result(user string) string {
 		ybet, rbet = r.Bet1, r.Bet2
 	} else {
 		ybet, rbet = r.Bet2, r.Bet1
-
 	}
 
 	return fmt.Sprintf("%s: your bet: %s, the rival's bet: %s", resp, r.betDecode(ybet), r.betDecode(rbet))

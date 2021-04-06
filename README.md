@@ -29,7 +29,7 @@ Golang executable can run into docker image created as FROM SCRATCH (see example
     ./build.sh
     docker build -f dockerfile --tag stone_scissors_paper
 
-Prepare `.env` file with the servvice configuration (see `.env.sample` file). Put the .env file in current directory.
+Prepare `.env` file with the service configuration (see example in `.env.sample` file). Put the .env file in current directory.
 Then you can run service in docker by command:
 
     docker run --name stone_scissors_paper -d -p 8080:8080 --env-file .env stone_scissors_paper

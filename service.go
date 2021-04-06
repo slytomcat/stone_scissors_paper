@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,7 +29,7 @@ var (
 func main() {
 	err := doMain()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -57,8 +57,8 @@ func doMain() error {
 	http.Handle("/bet", http.HandlerFunc(Bet))
 	http.Handle("/result", http.HandlerFunc(Result))
 
-	fmt.Printf("Stone Scissors Paper game service v.%s\n", version)
-	fmt.Printf("Starting service at %s\n", config.HostPort)
+	log.Printf("Stone Scissors Paper game service v.%s\n", version)
+	log.Printf("Starting service at %s\n", config.HostPort)
 
 	go server.ListenAndServe()
 
@@ -67,7 +67,7 @@ func doMain() error {
 
 	<-sig
 
-	fmt.Println("\nIterupted. Starting shutdown...")
+	log.Println("\nInterrupted. Starting shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
@@ -77,7 +77,7 @@ func doMain() error {
 		return err
 	}
 
-	fmt.Println("Shutdown finished.")
+	log.Println("Shutdown finished.")
 
 	return nil
 }

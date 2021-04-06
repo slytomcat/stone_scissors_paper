@@ -8,16 +8,20 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func Test_success(t *testing.T) {
+	godotenv.Load() // load .env file for test environment
+
 	go doMain()
 
 	time.Sleep(time.Millisecond * 500)
 
 	resp, err := http.Get("http://localhost:8080/new")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
