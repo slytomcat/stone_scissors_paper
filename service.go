@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	redis "github.com/go-redis/redis"
+	"github.com/go-redis/redis"
 )
 
 type config struct {
