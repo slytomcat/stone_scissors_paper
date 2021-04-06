@@ -64,7 +64,7 @@ jobs:
         shell: bash
         run: |
           echo ${{ github.ref }}
-          if [ ${{ github.ref }} == 'refs/pull/8/merge' ] 
+          if [ github.ref == 'refs/pull/8/merge' ] 
           then
             echo Match
           else
@@ -76,7 +76,7 @@ jobs:
   # Push image to GitHub Packages.
   push:
     needs: build
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env: 
       IMAGE_NAME: 'stone_scissors_paper'
