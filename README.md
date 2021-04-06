@@ -1,3 +1,5 @@
+[![Go](https://github.com/slytomcat/stone_scissors_paper/actions/workflows/go.yml/badge.svg)](https://github.com/slytomcat/stone_scissors_paper/actions/workflows/go.yml)
+
 # stone_scissors_paper
 
 `stone_scissors_paper` is a game-service to play in "Rock paper scissors" classic game.
