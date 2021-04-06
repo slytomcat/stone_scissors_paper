@@ -103,4 +103,4 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           
-          docker push docker.pkg.github.com/slytomcat/stone_scissors_paper/$IMAGE_NAME:$VERSION
+          docker push docker.pkg.github.com/slytomcat/$IMAGE_NAME:$VERSION
