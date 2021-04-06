@@ -8,8 +8,23 @@ on:
 
 jobs:
 
-  build:
+  
+  test:
     runs-on: ubuntu-latest
+
+    services:
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Opens tcp port 6379 on the host and service container
+          - 6379:6379
     steps:
     - uses: actions/checkout@v2
 
@@ -20,12 +35,70 @@ jobs:
 
     - name: conf
       shell: bash
-      env: 
-        super_secret: ${{ secrets.CONF_JSON }}
-      run: echo $super_secret > cnf.json
-
-    - name: Build
-      run: go build -v ./...
+      run: echo '{"HostPort":"localhost:8080","ConnectOptions":{"Addrs":["localhost:6379"]}}' > cnf.json
 
     - name: Test
       run: go test -v --race ./...
+
+  build:
+      needs: test
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Upload a Build Artifacts
+        uses: actions/upload-artifact@v2.2.2
+        with:
+          name: build_artifacts
+          path: stone_scissors_paper
+
+
+  # Push image to GitHub Packages.
+  push:
+    # Ensure test job passes before pushing image.
+    needs: build
+
+    runs-on: ubuntu-latest
+    env: 
+      IMAGE_NAME: 'stone_scissors_paper'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v2.0.8
+        with:
+          name: build_artifacts
+
+      - name: Log into registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          
+          docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
