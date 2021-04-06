@@ -64,7 +64,8 @@ jobs:
         shell: bash
         run: |
           echo ${{ github.ref }}
-          echo ${{ github.ref == 'refs/heads/main' }}
+          
+          echo ${{ github.ref }} == 'refs/heads/main'
       
 
 
