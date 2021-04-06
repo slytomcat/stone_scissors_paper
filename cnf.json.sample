@@ -1,7 +1,0 @@
-{
-    "HostPort": "localhost:8080",
-    "ConnectOptions": {
-        "Password": "<some very long password>",
-        "Addrs": [ "<the host that runs redis server>:6379" ]
-    }
-}

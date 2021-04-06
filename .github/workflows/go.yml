@@ -33,12 +33,11 @@ jobs:
       with:
         go-version: 1.16
 
-    - name: conf
-      shell: bash
-      run: echo '{"HostPort":"localhost:8080","ConnectOptions":{"Addrs":["localhost:6379"]}}' > cnf.json
-
     - name: Test
       run: go test -v --race ./...
+      env:
+        SSP_HOSTPORT: localhost:8080
+        SSP_REDISADDR: localhost:6379
 
   build:
       needs: test
@@ -59,19 +58,11 @@ jobs:
         with:
           name: build_artifacts
           path: stone_scissors_paper
-
-      - name: Check
-        shell: bash
-        run: |
-          echo ${{ github.ref }}
-          echo ${{ github.ref == 'refs/heads/main' }}
-      
-
-
+    
   # Push image to GitHub Packages.
   push:
     needs: build
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     env: 
       IMAGE_NAME: 'stone_scissors_paper'

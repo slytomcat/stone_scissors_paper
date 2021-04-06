@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type config struct {
-	HostPort       string
-	ConnectOptions redis.UniversalOptions
+	HostPort      string `default:"localhost:8080"`
+	RedisAddrs    []string
+	RedisPassword string
 }
 
 var (
@@ -34,17 +36,12 @@ func main() {
 func doMain() error {
 
 	config := config{}
-	buf, err := ioutil.ReadFile("cnf.json")
-	if err != nil {
-		return err
-	}
-	// parse config file
-	err = json.Unmarshal(buf, &config)
+	err := envconfig.Process("SSP", &config)
 	if err != nil {
 		return err
 	}
 
-	d, err := NewDatabse(config.ConnectOptions)
+	d, err := NewDatabse(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	if err != nil {
 		return err
 	}

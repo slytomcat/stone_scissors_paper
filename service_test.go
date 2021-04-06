@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -111,5 +112,24 @@ func Test_success(t *testing.T) {
 	}
 
 	t.Logf("Received result: %s", data)
+
+	// logger := os.Stdout
+	// r, w, _ := os.Pipe()
+	// os.Stdout = w
+
+	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	time.Sleep(time.Second)
+
+	// w.Close()
+	// os.Stdout = logger
+
+	// buf, err := io.ReadAll(r)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	// if !bytes.Contains(buf, []byte("Shutdown finished.")) {
+	// 	t.Errorf("received unexpected output: %s", buf)
+	// }
+	// log.Printf("%s", buf)
 
 }

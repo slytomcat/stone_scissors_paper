@@ -1,34 +1,34 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type storage_config struct {
-	ConnectOptions redis.UniversalOptions
+	HostPort      string `default:"localhost:8080"`
+	RedisAddrs    []string
+	RedisPassword string
 }
 
 func Test1_Storage(t *testing.T) {
 
 	config := storage_config{}
-	buf, err := ioutil.ReadFile("cnf.json")
-	if err != nil {
-		t.Error(err)
-	}
-	// parse config file
-	err = json.Unmarshal(buf, &config)
+
+	godotenv.Load() // load .env file for test environment
+
+	err := envconfig.Process("SSP", &config)
 	if err != nil {
 		t.Error(err)
 	}
 
-	db, err := NewDatabse(config.ConnectOptions)
+	db, err := NewDatabse(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	r := NewRound()

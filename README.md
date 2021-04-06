@@ -8,40 +8,31 @@
 
 The service requires Redis database connection. See the sample code that shows how to run Redis in Docker into `redisDockerRun.sh.sample`. NOTE: Don't forget to change the passsword for Redis in this file. Change "`<some very long password ...>`" to some random string without spaces.
 
-And exactly the same random string have to be written into configuration file as value of ConnectOptions.Password.
+And exactly the same random string have to be set as environnment variable SSP_REDISPASSWORD.
 
-Configuration file value ConnectOptions.Addrs have to contain at least one value in form "host:port" that points to host and port where the Redis server runs.
+The environnment variable SSP_REDISADDRS have set to at least one value in form "host:port" that points to host and port where the Redis server runs.
 
 ## Configuration
 
-Configuration file can be made from `cnf.json.sample` sample file. But You have to change the values in it according to the running environment.
+Service configuration is provided through the environment variables.
 
-Configuration file have to be named as `cnf.json` and it should be in the same folder from where service executable is running.
+### Configuration environment variables
 
-### Configuration values
-
-- `HostPort`: the value in form "host:port" that determines the host and port on which the service have to listen for requests.
-- `ConnectOptions`: Redis database connection options:
-    - `Addrs`: array of string values in form "host:port" that points to host and port where the Redis server runs.
-    - `Password`: password for secure connection to Redis database
-    - ... all possible connection options can be found [here](https://godoc.org/github.com/go-redis/redis#UniversalOptions)
+- `SSP_HOSTPORT`: the value in form "host:port" that determines the host and port on which the service have to listen for requests. Default value is: `localhost:8080`
+- `SSP_REDISADDRS`: array of string values in form "host:port" that points to host and port where the Redis server runs.
+- `SSP_REDISPASSWORD`: password for secure connection to Redis database
 
 ## Building and running the docker image
 
-Golang executable can run into docker image created as FROM SCRATCH (see example `dockerfile`). For this purpose the executable have to be build without dependencies to clib (CGO_ENABLED=0).
-
-    CGO_ENABLED=0 go build
-    docker build -f dockerfile --tag stone_scissors_paper
-or
+Golang executable can run into docker image created as FROM SCRATCH (see example `dockerfile`). For this purpose the executable have to be build without dependencies to clib (CGO_ENABLED=0). The `bild.sh` script provides all necessary options to build the service executable.
 
     ./build.sh
     docker build -f dockerfile --tag stone_scissors_paper
 
-Then you can run service in docker by command (NOTE: Change `<full path to configuration file>` to real path to config in this command before run it):
+Prepare `.env` file with the servvice configuration (see `.env.sample` file). Put the .env file in current directory.
+Then you can run service in docker by command:
 
-    docker run --name stone_scissors_paper -d -p 8080:8080 -v <full path to configuration file>:/opt/game/cnf.json stone_scissors_paper
-
-You also should correct exposed port (`-p 8080:8080`) according to `HostPort` configuration value.
+    docker run --name stone_scissors_paper -d -p 8080:8080 --env-file .env stone_scissors_paper
 
 ## Service API
 
