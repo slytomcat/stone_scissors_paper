@@ -12,7 +12,7 @@ import (
 func Test_success(t *testing.T) {
 	go doMain()
 
-	<-time.After(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 500)
 
 	resp, err := http.Get("http://localhost:8080/new")
 	if err != nil {

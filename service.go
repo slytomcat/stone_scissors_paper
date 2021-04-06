@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -47,13 +51,38 @@ func doMain() error {
 
 	db = NewCache(d, 40*time.Second, 1*time.Second)
 
+	server := http.Server{
+		Addr: config.HostPort,
+	}
+
+	server.Handler = http.DefaultServeMux
 	http.Handle("/new", http.HandlerFunc(New))
 	http.Handle("/bet", http.HandlerFunc(Bet))
 	http.Handle("/result", http.HandlerFunc(Result))
 
 	fmt.Printf("Stone Scissors Paper game service v.%s\n", version)
 	fmt.Printf("Starting service at %s\n", config.HostPort)
-	return http.ListenAndServe(config.HostPort, nil)
+
+	go server.ListenAndServe()
+
+	sig := make(chan (os.Signal))
+	signal.Notify(sig, os.Interrupt, syscall.SIGHUP)
+
+	<-sig
+
+	fmt.Println("\nIterupted. Starting shutdown...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	err = server.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Shutdown finished.")
+
+	return nil
 }
 
 // New realizes the request for new round
