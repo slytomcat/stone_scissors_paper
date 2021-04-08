@@ -12,19 +12,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      # Label used to access the service container
-      redis:
-        # Docker Hub image
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Opens tcp port 6379 on the host and service container
-          - 6379:6379
+    #services:
+    #  # Label used to access the service container
+    #  redis:
+    #    # Docker Hub image
+    #    image: redis
+    #    options: >-
+    #      --health-cmd "redis-cli ping"
+    #      --health-interval 10s
+    #      --health-timeout 5s
+    #      --health-retries 5
+    #    ports:
+    #      # Opens tcp port 6379 on the host and service container
+    #      - 6379:6379
     steps:
     - uses: actions/checkout@v2
 
@@ -33,6 +33,13 @@ jobs:
       with:
         go-version: 1.16
 
+    - name: Check
+      shell: bash
+      run: |
+        git tag
+        git log
+        git describe --tag
+        
     - name: Test
       run: go test -v --race ./...
       env:
