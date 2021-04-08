@@ -51,7 +51,7 @@ jobs:
           go-version: 1.16
 
       - name: Build
-        run: go build -v ./...
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v ./...
 
       - name: Upload a Build Artifacts
         uses: actions/upload-artifact@v2.2.2
@@ -80,12 +80,15 @@ jobs:
 
       - name: Build and push image
         run: |
-          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}
 
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
 
-          VERSION=latest
+          VERSION=$(git describe --tag)
 
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+
+          docker push $IMAGE_ID
+          

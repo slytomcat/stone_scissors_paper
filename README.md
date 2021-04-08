@@ -21,7 +21,7 @@ Service configuration is provided through the environment variables.
 - `SSP_HOSTPORT`: the value in form "host:port" that determines the host and port on which the service have to listen for requests. Default value is: `localhost:8080`
 - `SSP_REDISADDRS`: array of string values in form "host:port" that points to host and port where the Redis server runs.
 - `SSP_REDISPASSWORD`: password for secure connection to Redis database
-- `SSP_SERVERSALT`: server salt for hashes 
+- `SSP_SERVERSALT`: server salt for hashes (some random string without spaces)
 
 ## Building and running the docker image
 
@@ -53,8 +53,6 @@ Player can be itentifyed by any string value: some user_id, e-mail or phone numb
 Response: `HTTP 200 OK` with body containing JSON with following parameters:
 
 - `round`: round id
-- `user1`: token of first user
-- `user2`: token of second user
 
 
 ### Request for placing a bet:
@@ -71,10 +69,15 @@ Request body: JSON with following parameter:
 
 The `bet` value should be calculated as:
 1. Choice some secret. For example: `my secret`.
-2. join the bet (one of `paper`|`stone`|`scissors`) and your secret in one string without delimeters. Example: `papermy secret`.
+2. join the bet (one of `paper`|`stone`|`scissors`) and your secret in one string without delimeters. Example: `stonemy secret`.
 3. compute sha256 hash from the string.
-4. convert the resulting hash bytes to BASE64 URL safe encoding. 
-5. take first 42 symbols of BASE64 string. For string `papermy secret` you have to receive `ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5`.
+4. convert the resulting hash bytes to BASE64 URL safe encoding (usung symbols `_-` instead of `/+` and without padding). 
+
+For string `stonemy secret` you have to receive `L64zOtDB4yPHkd9ieLH8ghGdzDVn-_2X17Oo2bjDE64`
+
+This also can be done in bash:
+
+    echo -n 'stonemy secret' | openssl dgst -sha256 -binary | base64 | tr '/+' '_-' | tr -d '='
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
@@ -86,9 +89,10 @@ Success response: `HTTP 200 OK` with body containing JSON with following paramet
 When You receive `wait for the rival to place its bet` You should wait a little and make request for result. 
 When You receive `disclose your bet, please` (as response form this request or as response from the status request) then You can make request for discolse bet
 
-### Request for discolse bet:
 
-URL: `<host>[:<port>]/discolse`
+### Request for disclose bet:
+
+URL: `<host>[:<port>]/disclose`
 
 Method: `POST`
 
@@ -97,16 +101,15 @@ Request body: JSON with following parameter:
 - `round`: round id
 - `player`: Identification of player that places the bet
 - `bet`: open bet (one of `paper`|`stone`|`scissors`) 
-- `secret`: your secret, that you used for preparing the hidden bet (`my secret`)
+- `secret`: your secret, that was used for preparing the hidden bet (`my secret`)
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
 - `response`: one of: 
-    - `wait for your rival to disclose its bet` 
+    - `wait for your rival to disclose its bet` - you have to wait and make the result request to get the game result.
     - `you won ...`|`you lose ...`|`draw ...` - game result, it result also contains the current player and the rival's bets.
-    - `Your bet is incorrect` - the error message when player provided not the same secret or bet that was used to calculate the hidden bet.
+    - `Your bet is incorrect` - the error message when player provided not the same secret or bet that was used to calculate the hidden bet. Request for disclose bet can be repeated with the correct information.
  
-
 
 ### Request for results:
 URL: `<host>[:<port>]/result` 

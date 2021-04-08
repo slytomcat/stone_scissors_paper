@@ -43,7 +43,7 @@ func Test1_Storage(t *testing.T) {
 		t.Error("Retrived not the same as stored")
 	}
 
-	t.Logf("Stored: %v \n retrived: %v \n", r, rr)
+	t.Logf("Stored: %+v \n retrived: %+v \n", r, rr)
 
 	// check mutex in retrived round
 	rr.mx.Lock()

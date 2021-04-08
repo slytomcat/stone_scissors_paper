@@ -18,7 +18,7 @@ func saltedHash(salt, obj string) string {
 
 	h := sha256.Sum256(append([]byte(obj), []byte(salt)...))
 
-	return base64.URLEncoding.EncodeToString(h[:])[:42]
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(h[:])
 }
 
 func Test_success(t *testing.T) {

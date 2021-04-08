@@ -75,7 +75,7 @@ func (r *Round) saltedHash(salt string, obj []byte) string {
 
 	h := sha256.Sum256(append(obj, []byte(salt)...))
 
-	return base64.URLEncoding.EncodeToString(h[:])[:42]
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(h[:])
 }
 
 func (r *Round) roundSaltedHash(obj interface{}) string {

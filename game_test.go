@@ -12,8 +12,8 @@ func Test0_Hash(t *testing.T) {
 
 	tr := NewRound(player1, player2)
 
-	shData := tr.saltedHash("my secret", []byte("paper"))
-	shDataHash := "ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5"
+	shData := tr.saltedHash("my secret", []byte("stone"))       // "my secret", []byte("paper")
+	shDataHash := "L64zOtDB4yPHkd9ieLH8ghGdzDVn-_2X17Oo2bjDE64" // "ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5Y"
 	if shData != shDataHash {
 		t.Errorf("unexpected result from saltedHash: '%s'  while expecting: '%s'", shData, shDataHash)
 	}
@@ -31,7 +31,7 @@ func Test0_Hash(t *testing.T) {
 	tr.ID = "e500c6d1-93b5-4bd9-8ceb-a4a87fe60cd5" // fixed ID for predictable result of roundSaltedHash
 
 	shData = tr.roundSaltedHash(player1)
-	shDataHash = "J24xKbiLVHxdyh4ArORMaVnOKr5VzAtCOuWmPasPeC"
+	shDataHash = "J24xKbiLVHxdyh4ArORMaVnOKr5VzAtCOuWmPasPeCM"
 	if shData != shDataHash {
 		t.Errorf("unexpected result from saltedHash: '%s'  while expecting: '%s'", shData, shDataHash)
 	}
@@ -49,7 +49,7 @@ func Test1_NewRound(t *testing.T) {
 		t.Error("two tokens are equal")
 	}
 
-	t.Logf("received round:%v", tr)
+	t.Logf("received round:%+v", tr)
 
 	res := tr.Result(player1)
 
@@ -59,7 +59,7 @@ func Test1_NewRound(t *testing.T) {
 
 	t.Logf("received result after fist player step:%s", res)
 
-	t.Logf("updated round:%v", tr)
+	t.Logf("updated round:%+v", tr)
 
 	res = tr.Disclose("my secret", "paper", player1)
 
@@ -126,7 +126,7 @@ func Test2_NewRound(t *testing.T) {
 
 	tr := NewRound(player1, player2)
 
-	t.Logf("received round:%v+", tr)
+	t.Logf("received round:%+v", tr)
 
 	res := tr.Result(player1)
 
@@ -169,7 +169,7 @@ func Test5_NewRound_async(t *testing.T) {
 		t.Error("two tokens are equal")
 	}
 
-	t.Logf("received round:%v+", tr)
+	t.Logf("received round:%+v", tr)
 
 	//test_round.mx.Lock()
 
@@ -321,7 +321,7 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 
 	tr := NewRound(player1, player2)
 
-	t.Logf("received round:%v+", tr)
+	t.Logf("received round:%+v", tr)
 
 	res := tr.Step(tr.saltedHash("my secret", []byte("stone")), "player3")
 

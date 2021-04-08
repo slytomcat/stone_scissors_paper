@@ -104,10 +104,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 	}
 
 	round := NewRound(input.Player1, input.Player2)
-	if err := db.Store(round); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+
 	res, _ := json.Marshal(struct {
 		Round string `json:"round"`
 	}{
@@ -143,10 +140,6 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	}
 
 	res := round.Step(input.Bet, input.Player)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
 	err = db.Store(round)
 	if err != nil {
@@ -191,10 +184,6 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 	}
 
 	res := round.Disclose(input.Secret, input.Bet, input.Player)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
 	err = db.Store(round)
 	if err != nil {
@@ -235,12 +224,10 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res := round.Result(input.Player)
-
 	response, _ := json.Marshal(struct {
 		Respose string `json:"respose"`
 	}{
-		Respose: res,
+		Respose: round.Result(input.Player),
 	})
 
 	w.Header().Add("Content-Type", "application/json")
