@@ -44,6 +44,11 @@ jobs:
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        run: git desctibe --tag >> VERSION
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -57,8 +62,11 @@ jobs:
         uses: actions/upload-artifact@v2.2.2
         with:
           name: build_artifacts
-          path: stone_scissors_paper
-    
+          path: |
+            stone_scissors_paper
+            VERSION
+
+
   # Push image to GitHub Packages.
   push:
     needs: build
@@ -70,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download a Build Artifact
+      - name: Download Artifacts
         uses: actions/download-artifact@v2.0.8
         with:
           name: build_artifacts
