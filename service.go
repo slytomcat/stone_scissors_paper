@@ -15,15 +15,17 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type config struct {
+type configT struct {
 	HostPort      string `default:"localhost:8080"`
 	RedisAddrs    []string
 	RedisPassword string
+	ServerSalt    string
 }
 
 var (
 	db      Database
 	version string
+	config  = configT{}
 )
 
 func main() {
@@ -35,7 +37,7 @@ func main() {
 
 func doMain() error {
 
-	config := config{}
+	// config := config{}
 	err := envconfig.Process("SSP", &config)
 	if err != nil {
 		return err
@@ -55,6 +57,7 @@ func doMain() error {
 	server.Handler = http.DefaultServeMux
 	http.Handle("/new", http.HandlerFunc(New))
 	http.Handle("/bet", http.HandlerFunc(Bet))
+	http.Handle("/disclose", http.HandlerFunc(Disclose))
 	http.Handle("/result", http.HandlerFunc(Result))
 
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
@@ -84,19 +87,31 @@ func doMain() error {
 
 // New realizes the request for new round
 func New(w http.ResponseWriter, req *http.Request) {
-	round := NewRound()
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	input := struct {
+		Player1 string `json:"player1"`
+		Player2 string `json:"player2"`
+	}{}
+	err = json.Unmarshal(buf, &input)
+	if err != nil || input.Player1 == "" || input.Player2 == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	round := NewRound(input.Player1, input.Player2)
 	if err := db.Store(round); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	res, _ := json.Marshal(struct {
 		Round string `json:"round"`
-		User1 string `json:"user1"`
-		User2 string `json:"user2"`
 	}{
 		Round: round.ID,
-		User1: round.Player1,
-		User2: round.Player2,
 	})
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
@@ -111,12 +126,12 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	}
 
 	input := struct {
-		Round string `json:"round"`
-		User  string `json:"user"`
-		Bet   string `json:"bet"`
+		Round  string `json:"round"`
+		Player string `json:"player"`
+		Bet    string `json:"bet"`
 	}{}
 	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.Bet == "" || input.User == "" {
+	if err != nil || input.Round == "" || input.Bet == "" || input.Player == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -127,13 +142,55 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bet := round.betEncode(input.Bet)
-	if bet < 0 {
+	res := round.Step(input.Bet, input.Player)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = db.Store(round)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	response, _ := json.Marshal(struct {
+		Respose string `json:"respose"`
+	}{
+		Respose: res,
+	})
+
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(response)
+}
+
+// Disclose realizes the request for the disclose bet of user
+func Disclose(w http.ResponseWriter, req *http.Request) {
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	res := round.Step(bet, input.User)
+	input := struct {
+		Round  string `json:"round"`
+		Player string `json:"player"`
+		Secret string `json:"secret"`
+		Bet    string `json:"bet"`
+	}{}
+	err = json.Unmarshal(buf, &input)
+	if err != nil || input.Round == "" || input.Bet == "" || input.Secret == "" || input.Player == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	round, err := db.Retrieve(input.Round)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res := round.Disclose(input.Secret, input.Bet, input.Player)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -163,11 +220,11 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	input := struct {
-		Round string `json:"round"`
-		User  string `json:"user"`
+		Round  string `json:"round"`
+		Player string `json:"player"`
 	}{}
 	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.User == "" {
+	if err != nil || input.Round == "" || input.Player == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -178,7 +235,7 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res := round.Result(input.User)
+	res := round.Result(input.Player)
 
 	response, _ := json.Marshal(struct {
 		Respose string `json:"respose"`

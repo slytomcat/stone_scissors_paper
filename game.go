@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -33,104 +36,219 @@ var (
 
 // Round is a sigle raund game provider
 type Round struct {
-	mx      sync.RWMutex // guard for async updates
-	ID      string       `json:"id"`      // round id
-	Player1 string       `json:"player1"` // token for player1
-	Player2 string       `json:"player2"` // token for player1
-	Bet1    int          `json:"bid1"`    // bid of player1
-	Bet2    int          `json:"bid2"`    // bid of player1
-	Winner  int          `json:"winner"`  // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
+	mx         sync.RWMutex // guard for async updates
+	ID         string       `json:"id"`         // round id
+	Player1    string       `json:"player1"`    // hash of player1's token
+	Player2    string       `json:"player2"`    // hash of player2's token
+	HiddenBet1 string       `json:"hiddenbet1"` // hidden bet of player1
+	HiddenBet2 string       `json:"hiddenbet2"` // hidden bet of player2
+	Bet1       int          `json:"bet1"`       // open bet of player1
+	Bet2       int          `json:"bet2"`       // open bet of player2
+	Winner     int          `json:"winner"`     // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
+	Signature  string       `json:"signature"`  // round signature (calculated without itself)
 }
 
 // NewRound returns new initialized Round
-func NewRound() *Round {
-	return &Round{
-		mx:      sync.RWMutex{},
-		ID:      uuid.NewV4().String(),
-		Player1: uuid.NewV4().String(),
-		Player2: uuid.NewV4().String(),
-		Bet1:    nothing,
-		Bet2:    nothing,
-		Winner:  nobody,
+func NewRound(player1, player2 string) *Round {
+	r := &Round{
+		mx:         sync.RWMutex{},
+		ID:         uuid.NewV4().String(),
+		Player1:    "",
+		Player2:    "",
+		HiddenBet1: "",
+		HiddenBet2: "",
+		Bet1:       nothing,
+		Bet2:       nothing,
+		Winner:     nobody,
+		Signature:  "",
 	}
+
+	r.Player1 = r.roundSaltedHash(player1)
+	r.Player2 = r.roundSaltedHash(player2)
+	r.Signature = r.roundSaltedHash(r)
+
+	return r
 }
 
-// Step makes the user's bid
-func (r *Round) Step(bet int, user string) string {
-	if err := r.authorized(user); err != nil {
-		return "Unauthorized"
+// saltedHash returns first 32 symbos of BASE64 encoging of sha256(salt + obj)
+func (r *Round) saltedHash(salt string, obj []byte) string {
+
+	h := sha256.Sum256(append(obj, []byte(salt)...))
+
+	return base64.URLEncoding.EncodeToString(h[:])[:42]
+}
+
+func (r *Round) roundSaltedHash(obj interface{}) string {
+
+	salt := config.ServerSalt + r.ID // make individual salt for each round object
+
+	bObj, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
 	}
-	if bet != paper && bet != scissors && bet != stone {
-		return "wrong bet"
+
+	return r.saltedHash(salt, bObj)
+}
+
+func (r *Round) check(player string) string {
+
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	// clear Signature to calculate round hash without it
+	sign := r.Signature
+	defer func() { r.Signature = sign }()
+	r.Signature = ""
+
+	if sign != r.roundSaltedHash(r) {
+		return "round had been falsificated"
 	}
+
+	if err := r.authorized(player); err != nil {
+		return "unauthorized"
+	}
+	return ""
+}
+
+// Step makes the user's hiden bid
+func (r *Round) Step(hiddenBet, player string) string {
+	if res := r.check(player); res != "" {
+		return res
+	}
+
+	shPlayer := r.roundSaltedHash(player)
 
 	// data racing prevention
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	if r.Player1 == user && r.Bet1 != nothing || r.Player2 == user && r.Bet2 != nothing {
+	if r.Player1 == shPlayer && r.HiddenBet1 != "" ||
+		r.Player2 == shPlayer && r.HiddenBet2 != "" {
 		return "bet has already been placed"
 	}
 
-	if r.Player1 == user {
-		r.Bet1 = bet
+	if r.Player1 == r.roundSaltedHash(player) {
+		r.HiddenBet1 = hiddenBet
 	} else {
-		r.Bet2 = bet
+		r.HiddenBet2 = hiddenBet
 	}
+
+	// recalculate signature
+	r.Signature = ""
+	r.Signature = r.roundSaltedHash(r)
+
+	return r.result(player)
+}
+
+func (r *Round) Disclose(secret, bet, player string) string {
+	if res := r.check(player); res != "" {
+		return res
+	}
+
+	if r.HiddenBet1 == "" || r.HiddenBet2 == "" {
+		r.mx.RLock()
+		defer r.mx.RUnlock()
+		return r.result(player)
+	}
+
+	shPlayer := r.roundSaltedHash(player)
+
+	shBet := r.saltedHash(secret, []byte(bet))
+
+	if shPlayer == r.Player1 && r.HiddenBet1 != shBet ||
+		shPlayer == r.Player2 && r.HiddenBet2 != shBet {
+		return "Your bet is incorrect"
+	}
+
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	if shPlayer == r.Player1 {
+		r.Bet1 = r.betEncode(bet)
+	} else {
+		r.Bet2 = r.betEncode(bet)
+	}
+
 	if r.Bet1 != nothing && r.Bet2 != nothing {
 		// find the winner
 		r.Winner = rules[r.Bet1][r.Bet2]
 
-		return r.result(user)
 	}
+	// recalculate signature
+	r.Signature = ""
+	r.Signature = r.roundSaltedHash(r)
 
-	return "wait"
+	return r.result(player)
+
 }
 
 // Result returns the round result
-func (r *Round) Result(user string) string {
-	if err := r.authorized(user); err != nil {
-		return "Unauthorized"
+func (r *Round) Result(player string) string {
+	if res := r.check(player); res != "" {
+		return res
 	}
 	// data racing prevention
 	r.mx.RLock()
 	defer r.mx.RUnlock()
-	return r.result(user)
+	return r.result(player)
 }
 
 // result is not protected against data racing.
 // It have to be called after mx.Lock() or mx.RLock()
-func (r *Round) result(user string) string {
-	// check that winner is determined
-	if r.Winner == nobody {
-		return "wait"
+func (r *Round) result(player string) string {
+
+	hiddenBet, bet := "", nothing
+	rHiddenBet, rBet := "", nothing
+	cPlayer := 0
+	if r.Player1 == r.roundSaltedHash(player) {
+		hiddenBet = r.HiddenBet1
+		bet = r.Bet1
+		rHiddenBet = r.HiddenBet2
+		rBet = r.Bet2
+		cPlayer = first
+	} else {
+		hiddenBet = r.HiddenBet2
+		bet = r.Bet2
+		rHiddenBet = r.HiddenBet1
+		rBet = r.Bet1
+		cPlayer = second
 	}
+
+	if hiddenBet == "" {
+		return "place Your bet, please"
+	}
+
+	if rHiddenBet == "" {
+		return "wait for the rival to place its bet"
+	}
+
+	if bet == nothing {
+		return "disclose your bet, please"
+	}
+
+	if rBet == nothing {
+		return "wait for your rival to disclose its bet"
+	}
+
+	// there is a geme resul
 	resp := ""
 
 	if r.Winner == draw {
 		resp = "draw"
 	} else {
-		if r.Winner == first && user == r.Player1 ||
-			r.Winner == second && user == r.Player2 {
+		if r.Winner == cPlayer {
 			resp = "You won"
 		} else {
 			resp = "You lose"
 		}
 	}
 
-	ybet, rbet := nothing, nothing
-	if user == r.Player1 {
-		ybet, rbet = r.Bet1, r.Bet2
-	} else {
-		ybet, rbet = r.Bet2, r.Bet1
-	}
-
-	return fmt.Sprintf("%s: your bet: %s, the rival's bet: %s", resp, r.betDecode(ybet), r.betDecode(rbet))
+	return fmt.Sprintf("%s: your bet: %s, the rival's bet: %s", resp, r.betDecode(bet), r.betDecode(rBet))
 }
 
 // authorized checks the user
 func (r *Round) authorized(token string) error {
-	if token != r.Player1 && token != r.Player2 {
+	if r.roundSaltedHash(token) != r.Player1 && r.roundSaltedHash(token) != r.Player2 {
 		return errors.New("Unauthorized")
 	}
 	return nil
@@ -139,15 +257,16 @@ func (r *Round) authorized(token string) error {
 func (r *Round) betDecode(bet int) string {
 	switch bet {
 	case paper:
-		return "Paper"
+		return "paper"
 	case scissors:
-		return "Scissors"
+		return "scissors"
 	case stone:
-		return "Stone"
+		return "stone"
 	default:
 		return ""
 	}
 }
+
 func (r *Round) betEncode(bet string) int {
 	switch strings.ToLower(bet) {
 	case "paper":

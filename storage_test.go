@@ -9,15 +9,9 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type storage_config struct {
-	HostPort      string `default:"localhost:8080"`
-	RedisAddrs    []string
-	RedisPassword string
-}
-
 func Test1_Storage(t *testing.T) {
 
-	config := storage_config{}
+	config := configT{}
 
 	godotenv.Load() // load .env file for test environment
 
@@ -31,7 +25,7 @@ func Test1_Storage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := NewRound()
+	r := NewRound("u1", "u2")
 
 	err = db.Store(r)
 	if err != nil {
@@ -53,18 +47,18 @@ func Test1_Storage(t *testing.T) {
 
 	// check mutex in retrived round
 	rr.mx.Lock()
-	go rr.Step(stone, rr.Player1)
-	go rr.Step(scissors, rr.Player1)
-	go rr.Step(paper, rr.Player1)
-	go rr.Step(stone, rr.Player2)
-	go rr.Step(scissors, rr.Player2)
-	go rr.Step(paper, rr.Player2)
+	go rr.Step("stone", "u1")
+	go rr.Step("scissors", "u1")
+	go rr.Step("paper", "u1")
+	go rr.Step("stone", "u2")
+	go rr.Step("scissors", "u2")
+	go rr.Step("paper", "u2")
 	rr.mx.Unlock()
 
 	<-time.After(time.Microsecond)
 	rr.mx.Lock()
 	rr.mx.Unlock()
-	res := rr.Result(rr.Player1)
+	res := rr.Result("u1")
 	t.Logf("Result for first user aster game: %s \n", res)
 
 }

@@ -21,10 +21,11 @@ Service configuration is provided through the environment variables.
 - `SSP_HOSTPORT`: the value in form "host:port" that determines the host and port on which the service have to listen for requests. Default value is: `localhost:8080`
 - `SSP_REDISADDRS`: array of string values in form "host:port" that points to host and port where the Redis server runs.
 - `SSP_REDISPASSWORD`: password for secure connection to Redis database
+- `SSP_SERVERSALT`: server salt for hashes 
 
 ## Building and running the docker image
 
-Golang executable can run into docker image created as FROM SCRATCH (see example `dockerfile`). For this purpose the executable have to be build without dependencies to clib (CGO_ENABLED=0). The `bild.sh` script provides all necessary options to build the service executable.
+Golang executable can run into docker image created as FROM SCRATCH (see `dockerfile`). For this purpose the executable have to be build without dependencies to clib (CGO_ENABLED=0). The `bild.sh` script provides all necessary options to build the service executable.
 
     ./build.sh
     docker build -f dockerfile --tag stone_scissors_paper
@@ -42,6 +43,13 @@ URL: `<host>[:<port>]/new`
 
 Method: `POST`
 
+Request body: JSON with following parameter:
+
+- `player1`: Identification for first player
+- `player2`: Identification for second player 
+
+Player can be itentifyed by any string value: some user_id, e-mail or phone number. 
+
 Response: `HTTP 200 OK` with body containing JSON with following parameters:
 
 - `round`: round id
@@ -58,16 +66,45 @@ Method: `POST`
 Request body: JSON with following parameter:
 
 - `round`: round id
-- `user`: token of the user that places a bet
-- `bet`: one of `paper`|`stone`|`scissors` 
+- `player`: Identification of player that places the bet
+- `bet`: hidden bet: hash made from bet 
+
+The `bet` value should be calculated as:
+1. Choice some secret. For example: `my secret`.
+2. join the bet (one of `paper`|`stone`|`scissors`) and your secret in one string without delimeters. Example: `papermy secret`.
+3. compute sha256 hash from the string.
+4. convert the resulting hash bytes to BASE64 URL safe encoding. 
+5. take first 42 symbols of BASE64 string. For string `papermy secret` you have to receive `ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5`.
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
 - `response`: one of: 
-    - `wait` - wait for the second bet to be placed
-    - `you won ...`|`you lose ...`|`draw ...` - game result, it result also contains the current user and the rival's bets.
+    - `wait for the rival to place its bet` 
+    - `disclose your bet, please`
     - `bet has already been placed` - the error message when player trying to place more than one bet in the round.
-    - `unauthorized` - the error message when player is not authorized to place a bet.
+
+When You receive `wait for the rival to place its bet` You should wait a little and make request for result. 
+When You receive `disclose your bet, please` (as response form this request or as response from the status request) then You can make request for discolse bet
+
+### Request for discolse bet:
+
+URL: `<host>[:<port>]/discolse`
+
+Method: `POST`
+
+Request body: JSON with following parameter:
+
+- `round`: round id
+- `player`: Identification of player that places the bet
+- `bet`: open bet (one of `paper`|`stone`|`scissors`) 
+- `secret`: your secret, that you used for preparing the hidden bet (`my secret`)
+
+Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
+
+- `response`: one of: 
+    - `wait for your rival to disclose its bet` 
+    - `you won ...`|`you lose ...`|`draw ...` - game result, it result also contains the current player and the rival's bets.
+    - `Your bet is incorrect` - the error message when player provided not the same secret or bet that was used to calculate the hidden bet.
  
 
 
@@ -83,7 +120,11 @@ Request body: JSON with following parameter:
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 
-- `response`: the same values as in response on the request for bet.
+- `response`: the same values as in responses on the request for bet and disclosure.
+
+Some additional responses can be received in the requests for bet, disclose and result:
+    - `unauthorized` - the error message when player is not authorized to place a bet.
+    - `round had been falsificated` - the error message when the round information was falsificated. The falsificated round cannot be continued. 
 
 
 
