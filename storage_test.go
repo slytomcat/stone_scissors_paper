@@ -1,37 +1,31 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
-
-type storage_config struct {
-	ConnectOptions redis.UniversalOptions
-}
 
 func Test1_Storage(t *testing.T) {
 
-	config := storage_config{}
-	buf, err := ioutil.ReadFile("cnf.json")
-	if err != nil {
-		t.Error(err)
-	}
-	// parse config file
-	err = json.Unmarshal(buf, &config)
+	config := configT{}
+
+	godotenv.Load() // load .env file for test environment
+
+	err := envconfig.Process("SSP", &config)
 	if err != nil {
 		t.Error(err)
 	}
 
-	db, err := NewDatabse(config.ConnectOptions)
+	db, err := NewDatabse(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	r := NewRound()
+	r := NewRound("u1", "u2")
 
 	err = db.Store(r)
 	if err != nil {
@@ -49,22 +43,22 @@ func Test1_Storage(t *testing.T) {
 		t.Error("Retrived not the same as stored")
 	}
 
-	t.Logf("Stored: %v \n retrived: %v \n", r, rr)
+	t.Logf("Stored: %+v \n retrived: %+v \n", r, rr)
 
 	// check mutex in retrived round
 	rr.mx.Lock()
-	go rr.Step(stone, rr.Player1)
-	go rr.Step(scissors, rr.Player1)
-	go rr.Step(paper, rr.Player1)
-	go rr.Step(stone, rr.Player2)
-	go rr.Step(scissors, rr.Player2)
-	go rr.Step(paper, rr.Player2)
+	go rr.Step("stone", "u1")
+	go rr.Step("scissors", "u1")
+	go rr.Step("paper", "u1")
+	go rr.Step("stone", "u2")
+	go rr.Step("scissors", "u2")
+	go rr.Step("paper", "u2")
 	rr.mx.Unlock()
 
 	<-time.After(time.Microsecond)
 	rr.mx.Lock()
 	rr.mx.Unlock()
-	res := rr.Result(rr.Player1)
+	res := rr.Result("u1")
 	t.Logf("Result for first user aster game: %s \n", res)
 
 }

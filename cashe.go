@@ -43,7 +43,7 @@ func (c *Cache) handler(interval time.Duration) {
 	}
 	for {
 		list = []string{}
-		<-time.After(interval)
+		time.Sleep(interval)
 		c.data.Range(ex)
 		for _, k := range list {
 			c.data.Delete(k)

@@ -12,7 +12,7 @@ type testDB struct {
 }
 
 func (d *testDB) Store(r *Round) error {
-	fmt.Printf("stored: %v", r)
+	fmt.Printf("stored: %+v\n", r)
 	return nil
 }
 
@@ -21,25 +21,27 @@ func (d *testDB) Retrieve(key string) (*Round, error) {
 	if d.Err {
 		return nil, errors.New("test error")
 	}
-	return NewRound(), nil
+	return NewRound("", ""), nil
 }
 
 func Test_all(t *testing.T) {
 	d := &testDB{Err: false}
 	c := NewCache(d, 500*time.Millisecond, 50*time.Millisecond)
 
-	r := NewRound()
-	t.Log(r)
+	player1 := "player1"
+	player2 := "player2"
+	r := NewRound(player1, player2)
+	t.Logf("%+v\n", r)
 
 	err := c.Store(r)
 	if err != nil {
 		t.Error(err)
 	}
 
-	res := r.Step(stone, r.Player1)
+	res := r.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
-	if res != "wait" {
-		t.Error("wrong replay")
+	if res != "wait for the rival to place its bet" {
+		t.Errorf("wrong replay:%s", res)
 	}
 
 	r1, err := c.Retrieve(r.ID)
@@ -47,8 +49,8 @@ func Test_all(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log(r1)
-	res = r1.Step(paper, r.Player1)
+	t.Logf("%+v\n", r)
+	res = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
 	<-time.After(time.Second)
 
@@ -66,7 +68,7 @@ func Test_all(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log(r2)
+	t.Logf("%+v\n", r)
 
 	if r2.Bet1 == stone {
 		t.Error("not deleted")

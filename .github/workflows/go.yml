@@ -33,12 +33,11 @@ jobs:
       with:
         go-version: 1.16
 
-    - name: conf
-      shell: bash
-      run: echo '{"HostPort":"localhost:8080","ConnectOptions":{"Addrs":["localhost:6379"]}}' > cnf.json
-
     - name: Test
       run: go test -v --race ./...
+      env:
+        SSP_HOSTPORT: localhost:8080
+        SSP_REDISADDR: localhost:6379
 
   build:
       needs: test
@@ -50,28 +49,21 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.16
-
+      
       - name: Build
-        run: go build -v ./...
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)" ./...
 
       - name: Upload a Build Artifacts
         uses: actions/upload-artifact@v2.2.2
         with:
           name: build_artifacts
           path: stone_scissors_paper
-
-      - name: Check
-        shell: bash
-        if: github.ref == 'refs/pull/8/merge'
-        run: |
-          echo ${{ github.ref }}
-      
-
-
+    
   # Push image to GitHub Packages.
   push:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
+
     runs-on: ubuntu-latest
     env: 
       IMAGE_NAME: 'stone_scissors_paper'
@@ -94,7 +86,10 @@ jobs:
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
 
-          VERSION=latest
+          VERSION=$(cat VERSION)
 
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION
+          docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
+
+          docker push --all-tags $IMAGE_ID
+          
