@@ -33,8 +33,12 @@ jobs:
     #  with:
     #    go-version: 1.16
 
-    - name: tag number
-      run : echo ${{ github.event.release.tag_name }}
+
+    - name: Get latest release version number
+      id: get_version
+      uses: battila7/get-version-action@v2
+    - name: Some other action
+      run: echo ${{ steps.get_version.outputs.version }}
 
 
 
