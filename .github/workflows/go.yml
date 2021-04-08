@@ -34,12 +34,14 @@ jobs:
     #    go-version: 1.16
 
 
-    - name: Get latest release version number
-      id: get_version
-      uses: battila7/get-version-action@v2
-    - name: Some other action
-      run: echo ${{ steps.get_version.outputs.tag }}
-
+    - uses: olegtarasov/get-tag@v2.1
+      id: tagName
+    - name: Some other step # Output usage example
+      run: |
+          echo ${{ steps.tagName.outputs.package }}
+          echo ${{ steps.tagName.outputs.version }}
+          echo ${{ steps.tagName.outputs.version }}
+          echo $GIT_TAG_NAME
 
 
     - name: Fail
