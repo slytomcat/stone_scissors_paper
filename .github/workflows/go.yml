@@ -90,5 +90,5 @@ jobs:
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
           docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
 
-          docker push $IMAGE_ID
+          docker push --all-tags $IMAGE_ID
           
