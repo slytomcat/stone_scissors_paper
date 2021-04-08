@@ -60,8 +60,9 @@ jobs:
         uses: actions/upload-artifact@v2.2.2
         with:
           name: build_artifacts
-          path: stone_scissors_paper
-          path: VERSION
+          path: |
+            stone_scissors_paper
+            VERSION
     
   # Push image to GitHub Packages.
   push:
