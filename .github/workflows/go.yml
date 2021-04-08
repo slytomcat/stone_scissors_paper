@@ -28,17 +28,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
+    #- name: Set up Go
+    #  uses: actions/setup-go@v2
+    #  with:
+    #    go-version: 1.16
+
+    - name: Extract tag name
+      id: tag
+      uses: actions/github-script@0.2.0
       with:
-        go-version: 1.16
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+            return context.payload.ref.replace(/\/refs\/tags\//, '');
 
-    - name: Get the version
-      id: get_version
-      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
-
-    - name: Show Version
-      run: echo ${{ steps.get_version.outputs.VERSION }}
+    - name: Echo
+      run: echo ${{ steps.tag.outputs.result }}
 
     - name: Check
       shell: bash
