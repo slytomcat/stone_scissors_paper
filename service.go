@@ -89,6 +89,7 @@ func doMain() error {
 func New(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		log.Printf("Body reading error: %+v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -97,19 +98,29 @@ func New(w http.ResponseWriter, req *http.Request) {
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
 	}{}
+
 	err = json.Unmarshal(buf, &input)
 	if err != nil || input.Player1 == "" || input.Player2 == "" {
+		log.Printf("Wrong input params: '%s'", buf)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	round := NewRound(input.Player1, input.Player2)
 
+	err = db.Store(round)
+	if err != nil {
+		log.Printf("Round store error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	res, _ := json.Marshal(struct {
 		Round string `json:"round"`
 	}{
 		Round: round.ID,
 	})
+	log.Printf("new round: %s", res)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(res)
 }
@@ -118,6 +129,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 func Bet(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		log.Printf("Body reading error: %+v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -129,12 +141,14 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	}{}
 	err = json.Unmarshal(buf, &input)
 	if err != nil || input.Round == "" || input.Bet == "" || input.Player == "" {
+		log.Printf("Wrong input params: '%s'", buf)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
+		log.Printf("Round retrieve error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -143,6 +157,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 
 	err = db.Store(round)
 	if err != nil {
+		log.Printf("Round store error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -153,6 +168,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 		Respose: res,
 	})
 
+	log.Printf("round: %s - bet result: %s", round.ID, res)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
 }
@@ -161,6 +177,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 func Disclose(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		log.Printf("Body reading error: %+v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -173,12 +190,14 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 	}{}
 	err = json.Unmarshal(buf, &input)
 	if err != nil || input.Round == "" || input.Bet == "" || input.Secret == "" || input.Player == "" {
+		log.Printf("Wrong input params: '%s'", buf)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
+		log.Printf("Round retrieve error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -187,6 +206,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 
 	err = db.Store(round)
 	if err != nil {
+		log.Printf("Round store error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -197,6 +217,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 		Respose: res,
 	})
 
+	log.Printf("round: %s - disclose result: %s", round.ID, res)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
 }
@@ -205,6 +226,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 func Result(w http.ResponseWriter, req *http.Request) {
 	buf, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		log.Printf("Body reading error: %+v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -214,22 +236,27 @@ func Result(w http.ResponseWriter, req *http.Request) {
 	}{}
 	err = json.Unmarshal(buf, &input)
 	if err != nil || input.Round == "" || input.Player == "" {
+		log.Printf("Wrong input params: '%s'", buf)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
+		log.Printf("Round retrieve error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	res := round.Result(input.Player)
+
 	response, _ := json.Marshal(struct {
 		Respose string `json:"respose"`
 	}{
-		Respose: round.Result(input.Player),
+		Respose: res,
 	})
 
+	log.Printf("round: %s - result: %s", round.ID, res)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(response)
 }

@@ -12,7 +12,7 @@ type testDB struct {
 }
 
 func (d *testDB) Store(r *Round) error {
-	fmt.Printf("stored: %v", r)
+	fmt.Printf("stored: %+v\n", r)
 	return nil
 }
 
@@ -31,7 +31,7 @@ func Test_all(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 	r := NewRound(player1, player2)
-	t.Log(r)
+	t.Logf("%+v\n", r)
 
 	err := c.Store(r)
 	if err != nil {
@@ -49,7 +49,7 @@ func Test_all(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log(r1)
+	t.Logf("%+v\n", r)
 	res = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
 	<-time.After(time.Second)
@@ -68,7 +68,7 @@ func Test_all(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log(r2)
+	t.Logf("%+v\n", r)
 
 	if r2.Bet1 == stone {
 		t.Error("not deleted")

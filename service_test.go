@@ -84,7 +84,7 @@ func Test_success(t *testing.T) {
 	t.Logf("responce: %s", data)
 
 	if string(data) != `{"respose":"wait for the rival to place its bet"}` {
-		t.Error("Unexpected response")
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received step1: %s", data)
@@ -110,7 +110,7 @@ func Test_success(t *testing.T) {
 	}
 
 	if string(data) != `{"respose":"disclose your bet, please"}` {
-		t.Errorf("Unexpected response: %s", data)
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received step2: %s", data)
@@ -135,7 +135,7 @@ func Test_success(t *testing.T) {
 	t.Logf("Received result: %s", data)
 
 	if string(data) != `{"respose":"disclose your bet, please"}` {
-		t.Errorf("Unexpected response: %s", data)
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received result: %s", data)
@@ -166,7 +166,7 @@ func Test_success(t *testing.T) {
 	t.Logf("responce: %s", data)
 
 	if string(data) != `{"respose":"wait for your rival to disclose its bet"}` {
-		t.Error("Unexpected response")
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received disclose1: %s", data)
@@ -194,7 +194,7 @@ func Test_success(t *testing.T) {
 	}
 
 	if string(data) != `{"respose":"You lose: your bet: stone, the rival's bet: paper"}` {
-		t.Errorf("Unexpected response: %s", data)
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received disclose2: %s", data)
@@ -219,7 +219,7 @@ func Test_success(t *testing.T) {
 	t.Logf("Received result: %s", data)
 
 	if string(data) != `{"respose":"You won: your bet: paper, the rival's bet: stone"}` {
-		t.Errorf("Unexpected response: %s", data)
+		t.Errorf("Unexpected response: %v", resp)
 	}
 
 	t.Logf("Received result: %s", data)

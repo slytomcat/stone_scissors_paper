@@ -45,8 +45,8 @@ Method: `POST`
 
 Request body: JSON with following parameter:
 
-- `player1`: Identification for first player
-- `player2`: Identification for second player 
+- `player1`: identification for first player
+- `player2`: identification for second player 
 
 Player can be itentifyed by any string value: some user_id, e-mail or phone number. 
 
@@ -64,7 +64,7 @@ Method: `POST`
 Request body: JSON with following parameter:
 
 - `round`: round id
-- `player`: Identification of player that places the bet
+- `player`: identification of player that places the bet
 - `bet`: hidden bet: hash made from bet 
 
 The `bet` value should be calculated as:
@@ -119,7 +119,7 @@ Method: `POST`
 Request body: JSON with following parameter:
 
 - `round`: round id
-- `user`: token of the user that asks for result
+- `player`: identification of player that asks for result
 
 Success response: `HTTP 200 OK` with body containing JSON with following parameter: 
 

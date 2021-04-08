@@ -285,13 +285,13 @@ func Test5_NewRound_async(t *testing.T) {
 	t.Log(tr)
 }
 
-func Test6_bidEncodeDecode(t *testing.T) {
+func Test6_falsificate(t *testing.T) {
 	tr := NewRound("u1", "u2")
 
 	tr.Bet1 = scissors
 
 	res := tr.Result("u2")
-	t.Logf("received R result:%s", res)
+	t.Logf("received result:%s", res)
 
 }
 
