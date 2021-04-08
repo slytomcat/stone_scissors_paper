@@ -33,6 +33,13 @@ jobs:
       with:
         go-version: 1.16
 
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+
+    - name: Show Version
+      run: echo ${{ steps.get_version.outputs.VERSION }}
+
     - name: Check
       shell: bash
       run: |
