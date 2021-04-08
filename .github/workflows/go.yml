@@ -50,9 +50,6 @@ jobs:
         with:
           go-version: 1.16
       
-      - name: Version
-        run: git describe --tag > VERSION
-
       - name: Build
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)" ./...
 
@@ -60,9 +57,7 @@ jobs:
         uses: actions/upload-artifact@v2.2.2
         with:
           name: build_artifacts
-          path: |
-            stone_scissors_paper
-            VERSION
+          path: stone_scissors_paper
     
   # Push image to GitHub Packages.
   push:
