@@ -33,23 +33,20 @@ jobs:
     #  with:
     #    go-version: 1.16
 
-    - name: Extract tag name
-      id: tag
-      uses: actions/github-script@0.2.0
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-            return context.payload.ref.replace(/\/refs\/tags\//, '');
-
-    - name: Echo
-      run: echo ${{ steps.tag.outputs.result }}
-
-    - name: Check
-      shell: bash
+    - name: Build base image
       run: |
-        git tag
-        git log
-        git describe --tag
+        echo $SOURCE_NAME
+        echo $SOURCE_BRANCH
+        echo $SOURCE_TAG
+      env:
+        SOURCE_NAME: ${{ steps.branch_name.outputs.SOURCE_NAME }}
+        SOURCE_BRANCH: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
+        SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+
+
+    - name: Fail
+      shell: bash
+      run: git describe --tag
         
     - name: Test
       run: go test -v --race ./...
