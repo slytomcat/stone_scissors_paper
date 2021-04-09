@@ -63,7 +63,7 @@ func doMain() error {
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
 	log.Printf("Starting service at %s\n", config.HostPort)
 
-	go server.ListenAndServe()
+	go log.Print(server.ListenAndServe())
 
 	sig := make(chan (os.Signal))
 	signal.Notify(sig, os.Interrupt, syscall.SIGHUP)

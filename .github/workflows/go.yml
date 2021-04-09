@@ -38,6 +38,7 @@ jobs:
       env:
         SSP_HOSTPORT: localhost:8080
         SSP_REDISADDR: localhost:6379
+        SSSP_SERVERSALT: 12345
 
   build:
       needs: test
