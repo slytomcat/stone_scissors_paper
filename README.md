@@ -126,8 +126,9 @@ Success response: `HTTP 200 OK` with body containing JSON with following paramet
 - `response`: the same values as in responses on the request for bet and disclosure.
 
 Some additional responses can be received in the requests for bet, disclose and result:
-    - `unauthorized` - the error message when player is not authorized to place a bet.
-    - `round had been falsificated` - the error message when the round information was falsificated. The falsificated round cannot be continued. 
+
+- `unauthorized` - the error message when player is not authorized to play in this round.
+- `round had been falsificated` - the error message when the round information was falsificated. The falsificated round cannot be continued. 
 
 
 
