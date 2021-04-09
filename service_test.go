@@ -21,7 +21,7 @@ func saltedHash(salt, obj string) string {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(h[:])
 }
 
-func Test_success(t *testing.T) {
+func Test_service(t *testing.T) {
 	godotenv.Load() // load .env file for test environment
 
 	go doMain()
