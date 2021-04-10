@@ -61,6 +61,10 @@ func stopService(wg *sync.WaitGroup) {
 
 func Test_serviceWrongENV(t *testing.T) {
 
+	ss := os.Getenv("SSP_SERVERSALT")
+	defer func() {
+		os.Setenv("SSP_SERVERSALT", ss)
+	}()
 	os.Unsetenv("SSP_SERVERSALT")
 	//godotenv.Load()
 
@@ -83,10 +87,10 @@ func Test_serviceWrongENV2(t *testing.T) {
 
 	godotenv.Load()
 	adrs := os.Getenv("SSP_REDISADDRS")
-	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
 	defer func() {
 		os.Setenv("SSP_REDISADDRS", adrs)
 	}()
+	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
