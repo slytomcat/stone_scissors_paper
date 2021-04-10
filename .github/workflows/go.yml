@@ -85,9 +85,7 @@ jobs:
           name: build_artifacts
 
       - name: Version
-        run: |
-          VERSION=$(cat VERSION)
-          echo $VERSION
+        run: cat VERSION
 
       - name: Log into github registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
@@ -98,6 +96,8 @@ jobs:
 
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          VERSION=$(cat VERSION)
 
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
           docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
