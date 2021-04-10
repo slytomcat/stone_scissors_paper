@@ -26,7 +26,7 @@ type configT struct {
 
 var (
 	db      Database
-	version string
+	version = "test"
 	config  = configT{}
 )
 

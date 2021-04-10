@@ -59,14 +59,22 @@ func stopService(wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
-func Test_serviceWrongENV(t *testing.T) {
+func temporaryChangeEnv(env, val string) func() {
+	ss := os.Getenv(env)
+	if val == "" {
+		os.Unsetenv(env)
+	} else {
+		os.Setenv(env, val)
+	}
+	return func() {
+		os.Setenv(env, ss)
+	}
+}
 
-	ss := os.Getenv("SSP_SERVERSALT")
-	defer func() {
-		os.Setenv("SSP_SERVERSALT", ss)
-	}()
-	os.Unsetenv("SSP_SERVERSALT")
-	//godotenv.Load()
+func Test_serviceMissingENV(t *testing.T) {
+
+	godotenv.Load()
+	defer temporaryChangeEnv("SSP_REDISADDRS", "")()
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
@@ -83,14 +91,10 @@ func Test_serviceWrongENV(t *testing.T) {
 	}
 }
 
-func Test_serviceWrongENV2(t *testing.T) {
+func Test_serviceWrongEnv(t *testing.T) {
 
 	godotenv.Load()
-	adrs := os.Getenv("SSP_REDISADDRS")
-	defer func() {
-		os.Setenv("SSP_REDISADDRS", adrs)
-	}()
-	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
+	defer temporaryChangeEnv("SSP_REDISADDRS", "wrong.addrs:5555")()
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
@@ -108,6 +112,7 @@ func Test_serviceWrongENV2(t *testing.T) {
 }
 
 func Test_serviceFullGame(t *testing.T) {
+
 	godotenv.Load() // load .env file for test environment
 
 	wg := startService(t)
