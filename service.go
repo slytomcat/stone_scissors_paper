@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -37,7 +39,6 @@ func main() {
 
 func doMain() error {
 
-	// config := config{}
 	err := envconfig.Process("SSP", &config)
 	if err != nil {
 		return err
@@ -63,85 +64,104 @@ func doMain() error {
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
 	log.Printf("Starting service at %s\n", config.HostPort)
 
-	go server.ListenAndServe()
+	go func() { log.Println(server.ListenAndServe()) }()
 
 	sig := make(chan (os.Signal))
 	signal.Notify(sig, os.Interrupt, syscall.SIGHUP)
 
-	<-sig
+	<-sig // wait for a signal
 
-	log.Println("\nInterrupted. Starting shutdown...")
+	log.Println("Interrupted. Starting shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	err = server.Shutdown(ctx)
 	if err != nil {
+		log.Printf("Shutdown error:%v", err)
 		return err
 	}
 
 	log.Println("Shutdown finished.")
+	return nil
+}
+
+// getInput reds request body and parse it as JSON in to input sruct
+func getInput(body io.Reader, input interface{}) error {
+
+	buf, err := ioutil.ReadAll(body)
+	if err != nil {
+		return fmt.Errorf("Request body reading error: %W", err)
+	}
+
+	err = json.Unmarshal(buf, input)
+	if err != nil {
+		return fmt.Errorf("Request body parsing error: %W", err)
+	}
 
 	return nil
 }
 
+// sendResponse writes response struct as JSON into response body
+func sendResponse(w http.ResponseWriter, response interface{}) {
+	resp, _ := json.Marshal(response)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(resp)
+}
+
 // New realizes the request for new round
 func New(w http.ResponseWriter, req *http.Request) {
-	buf, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Body reading error: %+v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	input := struct {
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
 	}{}
+	if err := getInput(req.Body, &input); err != nil {
+		log.Print(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Player1 == "" || input.Player2 == "" {
-		log.Printf("Wrong input params: '%s'", buf)
+	if input.Player1 == "" || input.Player2 == "" {
+		log.Printf("Some mandatory fields are missed: %+v", input)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	round := NewRound(input.Player1, input.Player2)
 
-	err = db.Store(round)
+	err := db.Store(round)
 	if err != nil {
 		log.Printf("Round store error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	res, _ := json.Marshal(struct {
+	sendResponse(w, struct {
 		Round string `json:"round"`
 	}{
 		Round: round.ID,
 	})
-	log.Printf("new round: %s", res)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(res)
+
+	log.Printf("new round: %s", round.ID)
 }
 
 // Bet realizes the request for the new bet of user
 func Bet(w http.ResponseWriter, req *http.Request) {
-	buf, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Body reading error: %+v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	input := struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
 		Bet    string `json:"bet"`
 	}{}
-	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.Bet == "" || input.Player == "" {
-		log.Printf("Wrong input params: '%s'", buf)
+	if err := getInput(req.Body, &input); err != nil {
+		log.Print(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if input.Round == "" || input.Player == "" || input.Bet == "" {
+		log.Printf("Some mandatory fields are missed: %+v", input)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -162,25 +182,16 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	response, _ := json.Marshal(struct {
+	sendResponse(w, struct {
 		Respose string `json:"respose"`
 	}{
 		Respose: res,
 	})
-
 	log.Printf("round: %s - bet result: %s", round.ID, res)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(response)
 }
 
 // Disclose realizes the request for the disclose bet of user
 func Disclose(w http.ResponseWriter, req *http.Request) {
-	buf, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Body reading error: %+v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	input := struct {
 		Round  string `json:"round"`
@@ -188,9 +199,14 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 		Secret string `json:"secret"`
 		Bet    string `json:"bet"`
 	}{}
-	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.Bet == "" || input.Secret == "" || input.Player == "" {
-		log.Printf("Wrong input params: '%s'", buf)
+	if err := getInput(req.Body, &input); err != nil {
+		log.Print(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if input.Round == "" || input.Player == "" || input.Bet == "" || input.Secret == "" {
+		log.Printf("Some mandatory fields are missed: %+v", input)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -211,32 +227,30 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	response, _ := json.Marshal(struct {
+	sendResponse(w, struct {
 		Respose string `json:"respose"`
 	}{
 		Respose: res,
 	})
-
 	log.Printf("round: %s - disclose result: %s", round.ID, res)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(response)
 }
 
 // Result realizes the request for result of round
 func Result(w http.ResponseWriter, req *http.Request) {
-	buf, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Body reading error: %+v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+
 	input := struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
 	}{}
-	err = json.Unmarshal(buf, &input)
-	if err != nil || input.Round == "" || input.Player == "" {
-		log.Printf("Wrong input params: '%s'", buf)
+
+	if err := getInput(req.Body, &input); err != nil {
+		log.Print(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if input.Round == "" || input.Player == "" {
+		log.Printf("Some mandatory fields are missed: %+v", input)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -250,13 +264,10 @@ func Result(w http.ResponseWriter, req *http.Request) {
 
 	res := round.Result(input.Player)
 
-	response, _ := json.Marshal(struct {
+	sendResponse(w, struct {
 		Respose string `json:"respose"`
 	}{
 		Respose: res,
 	})
-
 	log.Printf("round: %s - result: %s", round.ID, res)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(response)
 }

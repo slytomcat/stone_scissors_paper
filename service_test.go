@@ -6,7 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -24,13 +28,20 @@ func saltedHash(salt, obj string) string {
 func Test_service(t *testing.T) {
 	godotenv.Load() // load .env file for test environment
 
-	go doMain()
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		main()
+		wg.Done()
+	}()
 
 	time.Sleep(time.Millisecond * 500)
 
 	player1 := "player1"
 	player2 := "player2"
 
+	// New
 	req, _ := json.Marshal(struct {
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
@@ -61,7 +72,6 @@ func Test_service(t *testing.T) {
 	t.Logf("Received new round: %v", res)
 
 	// place bets
-
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -89,6 +99,7 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received step1: %s", data)
 
+	// Bet
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -115,6 +126,7 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received step2: %s", data)
 
+	// result
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -141,7 +153,6 @@ func Test_service(t *testing.T) {
 	t.Logf("Received result: %s", data)
 
 	// Disclose
-
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -171,6 +182,7 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received disclose1: %s", data)
 
+	// Disclose
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -199,6 +211,7 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received disclose2: %s", data)
 
+	// result
 	req, _ = json.Marshal(struct {
 		Round  string `json:"round"`
 		Player string `json:"player"`
@@ -224,23 +237,65 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received result: %s", data)
 
-	// logger := os.Stdout
-	// r, w, _ := os.Pipe()
-	// os.Stdout = w
+	// Bad requests
+
+	t.Log("Testing bad requests to /new")
+	badRequest("http://localhost:8080/new", t)
+
+	t.Log("Testing bad requests to /bet")
+	badRequest("http://localhost:8080/bet", t)
+
+	t.Log("Testing bad requests to /disclose")
+	badRequest("http://localhost:8080/disclose", t)
+
+	t.Log("Testing bad requests to /result")
+	badRequest("http://localhost:8080/result", t)
+
+	// graceful sutdown
+	t.Log("Testing graceful sutdown")
+	r, w, _ := os.Pipe()
+	log.SetOutput(w)
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	time.Sleep(time.Second)
+	wg.Wait() // time.Sleep(time.Second * 2)
 
-	// w.Close()
-	// os.Stdout = logger
+	w.Close()
+	log.SetOutput(os.Stdout)
 
-	// buf, err := io.ReadAll(r)
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// if !bytes.Contains(buf, []byte("Shutdown finished.")) {
-	// 	t.Errorf("received unexpected output: %s", buf)
-	// }
-	// log.Printf("%s", buf)
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Contains(buf, []byte("Shutdown finished.")) {
+		t.Errorf("received unexpected output: %s", buf)
+	}
+	if !bytes.Contains(buf, []byte("http: Server closed")) {
+		t.Errorf("received unexpected output: %s", buf)
+	}
+	log.Printf("%s", buf)
 
+}
+
+func badRequest(url string, t *testing.T) {
+	resp, err := http.Post(url, "application/json", strings.NewReader(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Bad responce status code: %s", resp.Status)
+	} else {
+		t.Logf("Received expected responce code: %s", resp.Status)
+	}
+
+	resp, err = http.Post(url, "application/json", strings.NewReader(`{~`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Bad responce status code: %s", resp.Status)
+	} else {
+		t.Logf("Received expected responce code: %s", resp.Status)
+	}
 }
