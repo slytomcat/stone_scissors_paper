@@ -18,10 +18,10 @@ import (
 )
 
 type configT struct {
-	HostPort      string `default:"localhost:8080"`
-	RedisAddrs    []string
+	HostPort      string   `default:"localhost:8080"`
+	RedisAddrs    []string `required:"true"`
+	ServerSalt    string   `required:"true"`
 	RedisPassword string
-	ServerSalt    string
 }
 
 var (
@@ -52,14 +52,9 @@ func doMain() error {
 	db = NewCache(d, 40*time.Second, 1*time.Second)
 
 	server := http.Server{
-		Addr: config.HostPort,
+		Addr:    config.HostPort,
+		Handler: service{},
 	}
-
-	server.Handler = http.DefaultServeMux
-	http.Handle("/new", http.HandlerFunc(New))
-	http.Handle("/bet", http.HandlerFunc(Bet))
-	http.Handle("/disclose", http.HandlerFunc(Disclose))
-	http.Handle("/result", http.HandlerFunc(Result))
 
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
 	log.Printf("Starting service at %s\n", config.HostPort)
@@ -84,6 +79,24 @@ func doMain() error {
 
 	log.Println("Shutdown finished.")
 	return nil
+}
+
+// service is simple muxer
+type service struct{}
+
+func (s service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method + req.URL.Path {
+	case "POST/new":
+		New(w, req)
+	case "POST/bet":
+		Bet(w, req)
+	case "POST/disclose":
+		Disclose(w, req)
+	case "POST/result":
+		Result(w, req)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
 }
 
 // getInput reds request body and parse it as JSON in to input sruct

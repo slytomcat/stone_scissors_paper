@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -25,23 +26,93 @@ func saltedHash(salt, obj string) string {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(h[:])
 }
 
-func Test_service(t *testing.T) {
-	godotenv.Load() // load .env file for test environment
+func startService(t *testing.T) *sync.WaitGroup {
 
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		main()
 		wg.Done()
 	}()
 
-	time.Sleep(time.Millisecond * 500)
+	// wait for service start
+	err := errors.New("")
+	var resp *http.Response
+	timeout := time.After(time.Millisecond * 500)
+	for err != nil {
+		select {
+		case <-timeout:
+			t.Fatal("Service has failed to start")
+		default:
+			// use wrong path request to check the mux
+			resp, err = http.Post("http://localhost:8080", "application/json", strings.NewReader(``))
+			if err == nil {
+				resp.Body.Close()
+			}
+		}
+	}
+	return &wg
+}
+
+func stopService(wg *sync.WaitGroup) {
+	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	wg.Wait()
+}
+
+func Test_serviceWrongENV(t *testing.T) {
+
+	os.Unsetenv("SSP_SERVERSALT")
+	//godotenv.Load()
+
+	timer := time.NewTimer(time.Second)
+	go func(t *time.Timer) {
+		<-t.C
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	}(timer)
+
+	err := doMain()
+	if err == nil {
+		t.Error("No error when expected")
+	} else {
+		timer.Stop()
+		t.Logf("Received expected: %v", err)
+	}
+}
+
+func Test_serviceWrongENV2(t *testing.T) {
+
+	godotenv.Load()
+	adrs := os.Getenv("SSP_REDISADDRS")
+	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
+	defer func() {
+		os.Setenv("SSP_REDISADDRS", adrs)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	go func(t *time.Timer) {
+		<-t.C
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	}(timer)
+
+	err := doMain()
+	if err == nil {
+		t.Error("No error when expected")
+	} else {
+		timer.Stop()
+		t.Logf("Received expected: %v", err)
+	}
+}
+
+func Test_serviceFullGame(t *testing.T) {
+	godotenv.Load() // load .env file for test environment
+
+	wg := startService(t)
 
 	player1 := "player1"
 	player2 := "player2"
 
 	// New
+
 	req, _ := json.Marshal(struct {
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
@@ -237,27 +308,12 @@ func Test_service(t *testing.T) {
 
 	t.Logf("Received result: %s", data)
 
-	// Bad requests
-
-	t.Log("Testing bad requests to /new")
-	badRequest("http://localhost:8080/new", t)
-
-	t.Log("Testing bad requests to /bet")
-	badRequest("http://localhost:8080/bet", t)
-
-	t.Log("Testing bad requests to /disclose")
-	badRequest("http://localhost:8080/disclose", t)
-
-	t.Log("Testing bad requests to /result")
-	badRequest("http://localhost:8080/result", t)
-
 	// graceful sutdown
 	t.Log("Testing graceful sutdown")
 	r, w, _ := os.Pipe()
 	log.SetOutput(w)
 
-	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	wg.Wait() // time.Sleep(time.Second * 2)
+	stopService(wg)
 
 	w.Close()
 	log.SetOutput(os.Stdout)
@@ -273,6 +329,25 @@ func Test_service(t *testing.T) {
 		t.Errorf("received unexpected output: %s", buf)
 	}
 	log.Printf("%s", buf)
+
+}
+
+func Test_BadRequests(t *testing.T) {
+	godotenv.Load() // load .env file for test environment
+
+	defer stopService(startService(t))
+
+	t.Log("Testing bad requests to /new")
+	badRequest("http://localhost:8080/new", t)
+
+	t.Log("Testing bad requests to /bet")
+	badRequest("http://localhost:8080/bet", t)
+
+	t.Log("Testing bad requests to /disclose")
+	badRequest("http://localhost:8080/disclose", t)
+
+	t.Log("Testing bad requests to /result")
+	badRequest("http://localhost:8080/result", t)
 
 }
 
@@ -298,4 +373,29 @@ func badRequest(url string, t *testing.T) {
 	} else {
 		t.Logf("Received expected responce code: %s", resp.Status)
 	}
+}
+
+func Test_serviceBadRound(t *testing.T) {
+	godotenv.Load() // load .env file for test environment
+
+	defer stopService(startService(t))
+
+	t.Log("Testing bad round to /new")
+	badRound("http://localhost:8080/bet", `{"player":"p1","bet":"jasj","round":"not_existing"}`, t)
+
+	t.Log("Testing bad round to /disclose")
+	badRound("http://localhost:8080/disclose", `{"player":"p1","bet":"jasj","secret":"s","round":"not_existing"}`, t)
+
+	t.Log("Testing bad round to /result")
+	badRound("http://localhost:8080/result", `{"player":"p1","round":"not_existing"}`, t)
+
+}
+
+func badRound(url, params string, t *testing.T) {
+	resp, err := http.Post(url, "application/json", strings.NewReader(params))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
 }
