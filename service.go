@@ -67,11 +67,11 @@ func doMain() error {
 	go func() { log.Println(server.ListenAndServe()) }()
 
 	sig := make(chan (os.Signal), 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGHUP)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 
-	<-sig // wait for a signal
+	s := <-sig // wait for a signal
 
-	log.Println("Interrupted. Starting shutdown...")
+	log.Printf("%s received. Starting shutdown...", s.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
@@ -111,7 +111,10 @@ func getInput(req *http.Request, input interface{}) error {
 func sendResponse(w http.ResponseWriter, response interface{}) {
 	resp, _ := json.Marshal(response)
 	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
+	_, err := w.Write(resp)
+	if err != nil {
+		log.Printf("respone writing error: %v", err)
+	}
 }
 
 // New realizes the request for new round

@@ -140,6 +140,7 @@ func (r *Round) Step(hiddenBet, player string) string {
 	return r.result(player)
 }
 
+// Disclose used to disclose the user's steps
 func (r *Round) Disclose(secret, bet, player string) string {
 	if res := r.check(player); res != "" {
 		return res

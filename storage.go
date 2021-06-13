@@ -19,7 +19,7 @@ type redisDB struct {
 	r redis.UniversalClient
 }
 
-// NewDatabse returns a new instance of Database interface implementing the persistence layer via Redis
+// NewDatabase returns a new instance of Database interface implementing the persistence layer via Redis
 func NewDatabase(opt redis.UniversalOptions) (Database, error) {
 	db := redis.NewUniversalClient(&opt)
 	DB := &redisDB{db}
