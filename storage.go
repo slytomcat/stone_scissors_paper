@@ -20,7 +20,7 @@ type redisDB struct {
 }
 
 // NewDatabse returns a new instance of Database interface implementing the persistence layer via Redis
-func NewDatabse(opt redis.UniversalOptions) (Database, error) {
+func NewDatabase(opt redis.UniversalOptions) (Database, error) {
 	db := redis.NewUniversalClient(&opt)
 	DB := &redisDB{db}
 	// try to ping database

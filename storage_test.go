@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
@@ -20,7 +19,7 @@ func Test1_Storage(t *testing.T) {
 		t.Error(err)
 	}
 
-	db, err := NewDatabse(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
+	db, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +31,7 @@ func Test1_Storage(t *testing.T) {
 		t.Error(err)
 	}
 
-	rr, err := db.Retrieve(r.ID)
+	rr, _ := db.Retrieve(r.ID)
 
 	if rr.ID != r.ID ||
 		rr.Bet1 != r.Bet1 ||
@@ -44,21 +43,4 @@ func Test1_Storage(t *testing.T) {
 	}
 
 	t.Logf("Stored: %+v \n retrived: %+v \n", r, rr)
-
-	// check mutex in retrived round
-	rr.mx.Lock()
-	go rr.Step("stone", "u1")
-	go rr.Step("scissors", "u1")
-	go rr.Step("paper", "u1")
-	go rr.Step("stone", "u2")
-	go rr.Step("scissors", "u2")
-	go rr.Step("paper", "u2")
-	rr.mx.Unlock()
-
-	<-time.After(time.Microsecond)
-	rr.mx.Lock()
-	rr.mx.Unlock()
-	res := rr.Result("u1")
-	t.Logf("Result for first user aster game: %s \n", res)
-
 }

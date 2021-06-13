@@ -36,7 +36,7 @@ func NewCache(db Database, exp, interval time.Duration) Database {
 func (c *Cache) handler(interval time.Duration) {
 	list := []string{}
 	ex := func(key interface{}, value interface{}) bool {
-		if value.(data).exp.Sub(time.Now()) < 0 {
+		if time.Until(value.(data).exp) < 0 {
 			list = append(list, key.(string))
 		}
 		return true // continue iteration

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -44,16 +43,22 @@ func doMain() error {
 		return err
 	}
 
-	d, err := NewDatabse(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
+	d, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	if err != nil {
 		return err
 	}
 
 	db = NewCache(d, 40*time.Second, 1*time.Second)
 
+	mux := http.NewServeMux()
+	mux.HandleFunc("/new", New)
+	mux.HandleFunc("/bet", Bet)
+	mux.HandleFunc("/disclose", Disclose)
+	mux.HandleFunc("/result", Result)
+
 	server := http.Server{
 		Addr:    config.HostPort,
-		Handler: service{},
+		Handler: mux,
 	}
 
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
@@ -61,7 +66,7 @@ func doMain() error {
 
 	go func() { log.Println(server.ListenAndServe()) }()
 
-	sig := make(chan (os.Signal))
+	sig := make(chan (os.Signal), 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGHUP)
 
 	<-sig // wait for a signal
@@ -81,35 +86,22 @@ func doMain() error {
 	return nil
 }
 
-// service is simple muxer
-type service struct{}
-
-func (s service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	switch req.Method + req.URL.Path {
-	case "POST/new":
-		New(w, req)
-	case "POST/bet":
-		Bet(w, req)
-	case "POST/disclose":
-		Disclose(w, req)
-	case "POST/result":
-		Result(w, req)
-	default:
-		w.WriteHeader(http.StatusNotFound)
-	}
-}
-
 // getInput reds request body and parse it as JSON in to input sruct
-func getInput(body io.Reader, input interface{}) error {
+func getInput(req *http.Request, input interface{}) error {
+	defer req.Body.Close()
 
-	buf, err := ioutil.ReadAll(body)
+	if req.Method != "POST" {
+		return fmt.Errorf("wrong method: %s", req.Method)
+	}
+
+	buf, err := io.ReadAll(req.Body)
 	if err != nil {
-		return fmt.Errorf("Request body reading error: %W", err)
+		return fmt.Errorf("request body reading error: %W", err)
 	}
 
 	err = json.Unmarshal(buf, input)
 	if err != nil {
-		return fmt.Errorf("Request body parsing error: %W", err)
+		return fmt.Errorf("request body parsing error: %W", err)
 	}
 
 	return nil
@@ -129,15 +121,16 @@ func New(w http.ResponseWriter, req *http.Request) {
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
 	}{}
-	if err := getInput(req.Body, &input); err != nil {
-		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
+	if err := getInput(req, &input); err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if input.Player1 == "" || input.Player2 == "" {
-		log.Printf("Some mandatory fields are missed: %+v", input)
-		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
@@ -146,7 +139,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 	err := db.Store(round)
 	if err != nil {
 		log.Printf("Round store error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -167,22 +160,23 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 		Player string `json:"player"`
 		Bet    string `json:"bet"`
 	}{}
-	if err := getInput(req.Body, &input); err != nil {
+	if err := getInput(req, &input); err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if input.Round == "" || input.Player == "" || input.Bet == "" {
-		log.Printf("Some mandatory fields are missed: %+v", input)
-		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
 		log.Printf("Round retrieve error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -191,7 +185,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	err = db.Store(round)
 	if err != nil {
 		log.Printf("Round store error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -212,22 +206,23 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 		Secret string `json:"secret"`
 		Bet    string `json:"bet"`
 	}{}
-	if err := getInput(req.Body, &input); err != nil {
+	if err := getInput(req, &input); err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if input.Round == "" || input.Player == "" || input.Bet == "" || input.Secret == "" {
-		log.Printf("Some mandatory fields are missed: %+v", input)
-		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
 		log.Printf("Round retrieve error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -236,7 +231,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 	err = db.Store(round)
 	if err != nil {
 		log.Printf("Round store error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -256,22 +251,23 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		Player string `json:"player"`
 	}{}
 
-	if err := getInput(req.Body, &input); err != nil {
+	if err := getInput(req, &input); err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if input.Round == "" || input.Player == "" {
-		log.Printf("Some mandatory fields are missed: %+v", input)
-		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
 		log.Printf("Round retrieve error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

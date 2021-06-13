@@ -50,20 +50,20 @@ func Test_all(t *testing.T) {
 	}
 
 	t.Logf("%+v\n", r)
-	res = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
+	_ = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
 	<-time.After(time.Second)
 
 	d.Err = true
 
-	r2, err := c.Retrieve(r.ID)
+	_, err = c.Retrieve(r.ID)
 	if err == nil {
 		t.Error("no error when expected")
 	}
 
 	d.Err = false
 
-	r2, err = c.Retrieve(r.ID)
+	r2, err := c.Retrieve(r.ID)
 	if err != nil {
 		t.Error(err)
 	}
