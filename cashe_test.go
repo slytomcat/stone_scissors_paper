@@ -52,7 +52,7 @@ func Test_all(t *testing.T) {
 	t.Logf("%+v\n", r)
 	_ = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
-	<-time.After(time.Second)
+	time.Sleep(time.Second)
 
 	d.Err = true
 
