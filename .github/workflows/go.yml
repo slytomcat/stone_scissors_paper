@@ -1,64 +1,63 @@
 name: Go
-
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
-
+    branches:
+      - master
 jobs:
-
-  
   test:
     runs-on: ubuntu-latest
-
     services:
-      # Label used to access the service container
       redis:
-        # Docker Hub image
         image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s
           --health-retries 5
         ports:
-          # Opens tcp port 6379 on the host and service container
           - 6379:6379
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.16
-
-    - name: Test
-      run: go test -v --race ./...
-      env:
-        SSP_HOSTPORT: localhost:8080
-        SSP_REDISADDR: localhost:6379
-        SSP_SERVERSALT: 12345
-
-  build:
-      needs: test
-      runs-on: ubuntu-latest
-      steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Get version
-        run: git describe --tag >> VERSION
-
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.16
-      
+      - name: Cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            /home/runner/.cache/go-build/
+            /home/runner/go/pkg/mod/
+          key: GO_MOD_CACHE
+      - name: Test
+        run: go test -v --race ./...
+        env:
+          SSP_HOSTPORT: localhost:8080
+          SSP_REDISADDR: localhost:6379
+          SSP_SERVERSALT: 12345
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get version
+        run: git describe --tag >> VERSION
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - name: Cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            /home/runner/.cache/go-build/
+            /home/runner/go/pkg/mod/
+          key: GO_MOD_CACHE
       - name: Build
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "-X main.version=$(cat VERSION)" ./...
-
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "-X
+          main.version=$(cat VERSION)" ./...
       - name: Upload a Build Artifacts
         uses: actions/upload-artifact@v2.2.2
         with:
@@ -66,43 +65,35 @@ jobs:
           path: |
             stone_scissors_paper
             VERSION
-
-
-  # Push image to GitHub Packages.
   push:
     needs: build
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    env: 
-      IMAGE_NAME: 'stone_scissors_paper'
-
+    env:
+      IMAGE_NAME: stone_scissors_paper
     steps:
       - uses: actions/checkout@v2
-
       - name: Download Artifacts
         uses: actions/download-artifact@v2.0.8
         with:
           name: build_artifacts
-
       - name: Version
         run: cat VERSION
-
       - name: Log into github registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
-
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u
+          ${{ github.actor }} --password-stdin
       - name: Build and Push image for github
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
 
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          
+
           # get version
           VERSION=$(cat VERSION)
 
           docker build . --file dockerfile --tag $IMAGE_ID:$VERSION
           docker tag $IMAGE_ID:$VERSION $IMAGE_ID:latest
-          
+
           # Push image to GitHub Packages.
           docker push --all-tags $IMAGE_ID
-
