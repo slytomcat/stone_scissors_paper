@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type testDB struct {
@@ -34,20 +36,14 @@ func Test_all(t *testing.T) {
 	t.Logf("%+v\n", r)
 
 	err := c.Store(r)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	res := r.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
-	if res != "wait for the rival to place its bet" {
-		t.Errorf("wrong replay:%s", res)
-	}
+	assert.Equal(t, "wait for the rival to place its bet", res)
 
 	r1, err := c.Retrieve(r.ID)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	t.Logf("%+v\n", r)
 	_ = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
@@ -57,21 +53,15 @@ func Test_all(t *testing.T) {
 	d.Err = true
 
 	_, err = c.Retrieve(r.ID)
-	if err == nil {
-		t.Error("no error when expected")
-	}
+	assert.Error(t, err)
 
 	d.Err = false
 
 	r2, err := c.Retrieve(r.ID)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	t.Logf("%+v\n", r)
 
-	if r2.Bet1 == stone {
-		t.Error("not deleted")
-	}
+	assert.NotEqual(t, r2.Bet1, stone)
 
 }

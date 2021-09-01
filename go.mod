@@ -9,6 +9,7 @@ require (
 	github.com/onsi/ginkgo v1.16.0 // indirect
 	github.com/onsi/gomega v1.11.0 // indirect
 	github.com/satori/go.uuid v1.2.0
+	github.com/stretchr/testify v1.5.1
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )

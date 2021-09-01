@@ -3,6 +3,8 @@ package main
 import (
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test0_Hash(t *testing.T) {
@@ -14,28 +16,19 @@ func Test0_Hash(t *testing.T) {
 
 	shData := tr.saltedHash("my secret", []byte("stone"))       // "my secret", []byte("paper")
 	shDataHash := "L64zOtDB4yPHkd9ieLH8ghGdzDVn-_2X17Oo2bjDE64" // "ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5Y"
-	if shData != shDataHash {
-		t.Errorf("unexpected result from saltedHash: '%s'  while expecting: '%s'", shData, shDataHash)
-	}
+	assert.Equal(t, shDataHash, shData)
 
 	shDataHash = tr.roundSaltedHash(player1)
-	if tr.Player1 != shDataHash {
-		t.Errorf("unexpected Player1: '%s'  while expecting: '%s'", tr.Player1, shDataHash)
-	}
+	assert.Equal(t, shDataHash, tr.Player1)
 
 	shDataHash = tr.roundSaltedHash(player2)
-	if tr.Player2 != shDataHash {
-		t.Errorf("unexpected Player2: '%s'  while expecting: '%s'", tr.Player1, shDataHash)
-	}
+	assert.Equal(t, shDataHash, tr.Player2)
 
 	tr.ID = "e500c6d1-93b5-4bd9-8ceb-a4a87fe60cd5" // fixed ID for predictable result of roundSaltedHash
 
 	shData = tr.roundSaltedHash(player1)
 	shDataHash = "J24xKbiLVHxdyh4ArORMaVnOKr5VzAtCOuWmPasPeCM"
-	if shData != shDataHash {
-		t.Errorf("unexpected result from saltedHash: '%s'  while expecting: '%s'", shData, shDataHash)
-	}
-
+	assert.Equal(t, shDataHash, shData)
 }
 
 func Test1_NewRound(t *testing.T) {

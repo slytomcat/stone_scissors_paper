@@ -43,7 +43,7 @@ func (db *redisDB) Retrieve(id string) (*Round, error) {
 		return nil, err
 	}
 	round := &Round{mx: sync.RWMutex{}}
-	if json.Unmarshal([]byte(data), round) != nil {
+	if err := json.Unmarshal([]byte(data), round); err != nil {
 		return nil, err
 	}
 	return round, nil

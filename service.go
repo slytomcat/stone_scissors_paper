@@ -86,7 +86,7 @@ func doMain() error {
 	return nil
 }
 
-// getInput reds request body and parse it as JSON in to input sruct
+// getInput reads request body and parse it as JSON in to input sruct
 func getInput(req *http.Request, input interface{}) error {
 	defer req.Body.Close()
 

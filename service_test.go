@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 )
 
 func saltedHash(salt, obj string) string {
@@ -36,21 +36,17 @@ func startService(t *testing.T) *sync.WaitGroup {
 	}()
 
 	// wait for service start
-	err := errors.New("")
-	var resp *http.Response
-	timeout := time.After(time.Millisecond * 500)
-	for err != nil {
-		select {
-		case <-timeout:
-			t.Fatal("Service has failed to start")
-		default:
-			// use wrong path request to check the mux
-			resp, err = http.Post("http://localhost:8080", "application/json", strings.NewReader(``))
-			if err == nil {
-				resp.Body.Close()
-			}
+	assert.Eventually(t, func() bool {
+		// use wrong method to check the mux
+		resp, err := http.Get("http://localhost:8080/new")
+		if err == nil {
+			resp.Body.Close()
+			return true
 		}
-	}
+		return false
+
+	}, time.Millisecond*500, time.Millisecond*50)
+
 	return &wg
 }
 
@@ -59,22 +55,17 @@ func stopService(wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
-func temporaryChangeEnv(env, val string) func() {
-	ss := os.Getenv(env)
-	if val == "" {
-		os.Unsetenv(env)
-	} else {
-		os.Setenv(env, val)
-	}
-	return func() {
-		os.Setenv(env, ss)
+func envSet(t testing.TB, files ...string) {
+	envs, _ := godotenv.Read(files...)
+	for k, v := range envs {
+		t.Setenv(k, v)
 	}
 }
 
 func Test_serviceMissingENV(t *testing.T) {
 
-	godotenv.Load()
-	defer temporaryChangeEnv("SSP_REDISADDRS", "")()
+	envSet(t)
+	os.Unsetenv("SSP_REDISADDRS")
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
@@ -82,19 +73,14 @@ func Test_serviceMissingENV(t *testing.T) {
 		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	}(timer)
 
-	err := doMain()
-	if err == nil {
-		t.Error("No error when expected")
-	} else {
-		timer.Stop()
-		t.Logf("Received expected: %v", err)
-	}
+	assert.Error(t, doMain())
+	timer.Stop()
 }
 
 func Test_serviceWrongEnv(t *testing.T) {
 
-	godotenv.Load()
-	defer temporaryChangeEnv("SSP_REDISADDRS", "wrong.addrs:5555")()
+	envSet(t)
+	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
@@ -102,20 +88,32 @@ func Test_serviceWrongEnv(t *testing.T) {
 		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	}(timer)
 
-	err := doMain()
-	if err == nil {
-		t.Error("No error when expected")
-	} else {
-		timer.Stop()
-		t.Logf("Received expected: %v", err)
-	}
+	assert.Error(t, doMain())
+	timer.Stop()
+}
+
+func Test_gracefulSutdown(t *testing.T) {
+	envSet(t)
+	wg := startService(t)
+	// graceful sutdown
+	t.Log("Testing graceful sutdown")
+	r, w, _ := os.Pipe()
+	log.SetOutput(w)
+
+	stopService(wg)
+
+	w.Close()
+	log.SetOutput(os.Stdout)
+
+	buf, err := io.ReadAll(r)
+	assert.NoError(t, err)
+	assert.Contains(t, string(buf), "Shutdown finished.")
+	assert.Contains(t, string(buf), "http: Server closed")
 }
 
 func Test_serviceFullGame(t *testing.T) {
-
-	godotenv.Load() // load .env file for test environment
-
-	wg := startService(t)
+	envSet(t) // load .env file for test environment
+	defer stopService(startService(t))
 
 	player1 := "player1"
 	player2 := "player2"
@@ -131,23 +129,17 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err := http.Post("http://localhost:8080/new", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	t.Logf("responce: %s", data)
 	res := struct {
 		Round string `json:"round"`
 	}{}
 
 	err = json.Unmarshal(data, &res)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	t.Logf("Received new round: %v", res)
 
@@ -163,19 +155,13 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	t.Logf("responce: %s", data)
 
-	if string(data) != `{"respose":"wait for the rival to place its bet"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"wait for the rival to place its bet"}`, string(data))
 
 	t.Logf("Received step1: %s", data)
 
@@ -191,18 +177,12 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
-	if string(data) != `{"respose":"disclose your bet, please"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"disclose your bet, please"}`, string(data))
 
 	t.Logf("Received step2: %s", data)
 
@@ -216,19 +196,13 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/result", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	t.Logf("Received result: %s", data)
 
-	if string(data) != `{"respose":"disclose your bet, please"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"disclose your bet, please"}`, string(data))
 
 	t.Logf("Received result: %s", data)
 
@@ -246,19 +220,13 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/disclose", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	t.Logf("responce: %s", data)
 
-	if string(data) != `{"respose":"wait for your rival to disclose its bet"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"wait for your rival to disclose its bet"}`, string(data))
 
 	t.Logf("Received disclose1: %s", data)
 
@@ -276,18 +244,12 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/disclose", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
-	if string(data) != `{"respose":"You lose: your bet: stone, the rival's bet: paper"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"You lose: your bet: stone, the rival's bet: paper"}`, string(data))
 
 	t.Logf("Received disclose2: %s", data)
 
@@ -301,49 +263,20 @@ func Test_serviceFullGame(t *testing.T) {
 	})
 
 	resp, err = http.Post("http://localhost:8080/result", "application/json", bytes.NewReader(req))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	t.Logf("Received result: %s", data)
 
-	if string(data) != `{"respose":"You won: your bet: paper, the rival's bet: stone"}` {
-		t.Errorf("Unexpected response: %v", resp)
-	}
+	assert.Equal(t, `{"respose":"You won: your bet: paper, the rival's bet: stone"}`, string(data))
 
 	t.Logf("Received result: %s", data)
-
-	// graceful sutdown
-	t.Log("Testing graceful sutdown")
-	r, w, _ := os.Pipe()
-	log.SetOutput(w)
-
-	stopService(wg)
-
-	w.Close()
-	log.SetOutput(os.Stdout)
-
-	buf, err := io.ReadAll(r)
-	if err != nil {
-		t.Error(err)
-	}
-	if !bytes.Contains(buf, []byte("Shutdown finished.")) {
-		t.Errorf("received unexpected output: %s", buf)
-	}
-	if !bytes.Contains(buf, []byte("http: Server closed")) {
-		t.Errorf("received unexpected output: %s", buf)
-	}
-	log.Printf("%s", buf)
 
 }
 
 func Test_BadRequests(t *testing.T) {
-	godotenv.Load() // load .env file for test environment
-
+	envSet(t) // load .env file for test environment
 	defer stopService(startService(t))
 
 	t.Log("Testing bad requests to /new")
@@ -362,30 +295,18 @@ func Test_BadRequests(t *testing.T) {
 
 func badRequest(url string, t *testing.T) {
 	resp, err := http.Post(url, "application/json", strings.NewReader(`{}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Bad responce status code: %s", resp.Status)
-	} else {
-		t.Logf("Received expected responce code: %s", resp.Status)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 	resp, err = http.Post(url, "application/json", strings.NewReader(`{~`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Bad responce status code: %s", resp.Status)
-	} else {
-		t.Logf("Received expected responce code: %s", resp.Status)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func Test_serviceBadRound(t *testing.T) {
-	godotenv.Load() // load .env file for test environment
+	envSet(t) // load .env file for test environment
 
 	defer stopService(startService(t))
 
@@ -402,9 +323,7 @@ func Test_serviceBadRound(t *testing.T) {
 
 func badRound(url, params string, t *testing.T) {
 	resp, err := http.Post(url, "application/json", strings.NewReader(params))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
 }
