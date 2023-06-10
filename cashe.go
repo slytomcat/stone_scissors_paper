@@ -10,7 +10,7 @@ type Cache struct {
 	data       map[string]data //sync.Map
 	mux        sync.RWMutex
 	db         Database
-	defaultexp time.Duration
+	defaultExp time.Duration
 }
 
 // data is a memory cache element
@@ -22,13 +22,13 @@ type data struct {
 // NewCache returns a new Database interface with the passthrough memory cache as wrapping of the provided Database interface
 // db - the Database interface to wrap
 // exp - default data expiration in the memory cache
-// interval - memery cache clearing interval
+// interval - memory cache clearing interval
 func NewCache(db Database, exp, interval time.Duration) Database {
 	cache := &Cache{
 		data:       map[string]data{}, // sync.Map{},
 		mux:        sync.RWMutex{},
 		db:         db,
-		defaultexp: exp,
+		defaultExp: exp,
 	}
 	go cache.handler(interval)
 	return cache
@@ -64,7 +64,7 @@ func (c *Cache) Store(r *Round) error {
 	defer c.mux.Unlock()
 	c.data[r.ID] = data{
 		r:   r,
-		exp: time.Now().Add(c.defaultexp),
+		exp: time.Now().Add(c.defaultExp),
 	}
 	return c.db.Store(r)
 }
@@ -85,7 +85,7 @@ func (c *Cache) Retrieve(id string) (*Round, error) {
 	defer c.mux.Unlock()
 	c.data[id] = data{
 		r:   r,
-		exp: time.Now().Add(c.defaultexp),
+		exp: time.Now().Add(c.defaultExp),
 	}
 
 	return r, nil

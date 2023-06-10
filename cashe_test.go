@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testDB struct {
@@ -19,7 +19,7 @@ func (d *testDB) Store(r *Round) error {
 }
 
 func (d *testDB) Retrieve(key string) (*Round, error) {
-	fmt.Printf("retrive: %s", key)
+	fmt.Printf("retrieved: %s", key)
 	if d.Err {
 		return nil, errors.New("test error")
 	}
@@ -36,14 +36,14 @@ func Test_all(t *testing.T) {
 	t.Logf("%+v\n", r)
 
 	err := c.Store(r)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	res := r.Step(r.saltedHash("my secret", []byte("paper")), player1)
 
-	assert.Equal(t, "wait for the rival to place its bet", res)
+	require.Equal(t, "wait for the rival to place its bet", res)
 
 	r1, err := c.Retrieve(r.ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Logf("%+v\n", r)
 	_ = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
@@ -53,15 +53,15 @@ func Test_all(t *testing.T) {
 	d.Err = true
 
 	_, err = c.Retrieve(r.ID)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	d.Err = false
 
 	r2, err := c.Retrieve(r.ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Logf("%+v\n", r)
 
-	assert.NotEqual(t, r2.Bet1, stone)
+	require.NotEqual(t, r2.Bet1, stone)
 
 }

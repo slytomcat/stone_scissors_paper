@@ -127,7 +127,7 @@ func (r *Round) Step(hiddenBet, player string) string {
 		return "bet has already been placed"
 	}
 
-	if r.Player1 == r.roundSaltedHash(player) {
+	if r.Player1 == shPlayer {
 		r.HiddenBet1 = hiddenBet
 	} else {
 		r.HiddenBet2 = hiddenBet
@@ -231,7 +231,7 @@ func (r *Round) result(player string) string {
 		return "wait for your rival to disclose its bet"
 	}
 
-	// there is a geme resul
+	// there is a game result
 	resp := ""
 
 	if r.Winner == draw {

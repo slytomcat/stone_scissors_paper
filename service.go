@@ -193,9 +193,9 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	}
 
 	sendResponse(w, struct {
-		Respose string `json:"respose"`
+		Response string `json:"respose"`
 	}{
-		Respose: res,
+		Response: res,
 	})
 	log.Printf("round: %s - bet result: %s", round.ID, res)
 }
@@ -277,9 +277,9 @@ func Result(w http.ResponseWriter, req *http.Request) {
 	res := round.Result(input.Player)
 
 	sendResponse(w, struct {
-		Respose string `json:"respose"`
+		Response string `json:"response"`
 	}{
-		Respose: res,
+		Response: res,
 	})
 	log.Printf("round: %s - result: %s", round.ID, res)
 }

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test0_Hash(t *testing.T) {
@@ -16,19 +16,19 @@ func Test0_Hash(t *testing.T) {
 
 	shData := tr.saltedHash("my secret", []byte("stone"))       // "my secret", []byte("paper")
 	shDataHash := "L64zOtDB4yPHkd9ieLH8ghGdzDVn-_2X17Oo2bjDE64" // "ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5Y"
-	assert.Equal(t, shDataHash, shData)
+	require.Equal(t, shDataHash, shData)
 
 	shDataHash = tr.roundSaltedHash(player1)
-	assert.Equal(t, shDataHash, tr.Player1)
+	require.Equal(t, shDataHash, tr.Player1)
 
 	shDataHash = tr.roundSaltedHash(player2)
-	assert.Equal(t, shDataHash, tr.Player2)
+	require.Equal(t, shDataHash, tr.Player2)
 
 	tr.ID = "e500c6d1-93b5-4bd9-8ceb-a4a87fe60cd5" // fixed ID for predictable result of roundSaltedHash
 
 	shData = tr.roundSaltedHash(player1)
 	shDataHash = "J24xKbiLVHxdyh4ArORMaVnOKr5VzAtCOuWmPasPeCM"
-	assert.Equal(t, shDataHash, shData)
+	require.Equal(t, shDataHash, shData)
 }
 
 func Test1_NewRound(t *testing.T) {
@@ -37,79 +37,72 @@ func Test1_NewRound(t *testing.T) {
 	player2 := "player2"
 
 	tr := NewRound(player1, player2)
-
-	if tr.Player1 == tr.Player2 {
-		t.Error("two tokens are equal")
-	}
-
-	t.Logf("received round:%+v", tr)
+	require.NotEqual(t, tr.Player1, tr.Player2)
+	p1 := tr.roundSaltedHash(player1)
+	p2 := tr.roundSaltedHash(player2)
+	storedSig := tr.Signature
+	storedID := tr.ID
+	tr.Signature = ""
+	require.Equal(t, tr.roundSaltedHash(tr), storedSig)
+	tr.ID = ""
+	require.Equal(t, &Round{
+		Player1: p1,
+		Player2: p2,
+	}, tr)
+	tr.Signature = storedSig
+	tr.ID = storedID
 
 	res := tr.Result(player1)
+	require.Equal(t, "place Your bet, please", res)
 
-	t.Logf("received result for first player :%s", res)
+	bet1 := tr.saltedHash("my secret", []byte("paper"))
+	res = tr.Step(bet1, player1)
+	require.Equal(t, "wait for the rival to place its bet", res)
 
-	res = tr.Step(tr.saltedHash("my secret", []byte("paper")), player1)
-
-	t.Logf("received result after fist player step:%s", res)
-
-	t.Logf("updated round:%+v", tr)
+	require.Equal(t, bet1, tr.HiddenBet1)
+	require.Equal(t, "", tr.HiddenBet2)
 
 	res = tr.Disclose("my secret", "paper", player1)
-
-	t.Logf("received result after discosure of first player:%s", res)
+	require.Equal(t, "wait for the rival to place its bet", res)
 
 	res = tr.Step(tr.saltedHash("my secret", []byte("stone")), player1)
-
-	t.Logf("received result after fist player double step:%s", res)
+	require.Equal(t, "bet has already been placed", res)
 
 	res = tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "wait for the rival to place its bet", res)
 
 	res = tr.Result(player2)
-
-	t.Logf("received result for second player :%s", res)
+	require.Equal(t, "place Your bet, please", res)
 
 	res = tr.Step(tr.saltedHash("my 2 secret", []byte("stone")), player2)
-
-	t.Logf("received result after second player step:%s", res)
+	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Disclose("wrong secret", "paper", player1)
-
-	t.Logf("received result after wrong discosure of first player:%s", res)
+	require.Equal(t, "Your bet is incorrect", res)
 
 	res = tr.Disclose("my secret", "stone", player1)
-
-	t.Logf("received result after wrong discosure of first player:%s", res)
+	require.Equal(t, "Your bet is incorrect", res)
 
 	res = tr.Disclose("my secret", "paper", player1)
-
-	t.Logf("received result after correct discosure of first player:%s", res)
+	require.Equal(t, "wait for your rival to disclose its bet", res)
 
 	res = tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "wait for your rival to disclose its bet", res)
 
 	res = tr.Result(player2)
-
-	t.Logf("received result for second player :%s", res)
+	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Disclose("my 2 secret", "stone", player2)
-
-	t.Logf("received result after correct discosure of second player:%s", res)
+	require.Equal(t, "You lose: your bet: stone, the rival's bet: paper", res)
 
 	res = tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "You won: your bet: paper, the rival's bet: stone", res)
 
 	res = tr.Result(player2)
-
-	t.Logf("received result for second player :%s", res)
-
+	require.Equal(t, "You lose: your bet: stone, the rival's bet: paper", res)
 }
 
 func Test2_NewRound(t *testing.T) {
@@ -118,37 +111,26 @@ func Test2_NewRound(t *testing.T) {
 	player2 := "player2"
 
 	tr := NewRound(player1, player2)
-
-	t.Logf("received round:%+v", tr)
-
 	res := tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "place Your bet, please", res)
 
 	res = tr.Step(tr.saltedHash("my secret", []byte("paper")), player1)
-
-	t.Logf("received result after fist player step:%s", res)
+	require.Equal(t, "wait for the rival to place its bet", res)
 
 	res = tr.Step(tr.saltedHash("my 2 secret", []byte("paper")), player2)
-
-	t.Logf("received result after second player step:%s", res)
+	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Disclose("my secret", "paper", player1)
-
-	t.Logf("received result after correct discosure of first player:%s", res)
+	require.Equal(t, "wait for your rival to disclose its bet", res)
 
 	res = tr.Disclose("my 2 secret", "paper", player2)
-
-	t.Logf("received result after correct discosure of second player:%s", res)
+	require.Equal(t, "draw: your bet: paper, the rival's bet: paper", res)
 
 	res = tr.Result(player1)
-
-	t.Logf("received result for first player :%s", res)
+	require.Equal(t, "draw: your bet: paper, the rival's bet: paper", res)
 
 	res = tr.Result(player2)
-
-	t.Logf("received result for second player :%s", res)
-
+	require.Equal(t, "draw: your bet: paper, the rival's bet: paper", res)
 }
 
 func Test5_NewRound_async(t *testing.T) {
@@ -158,104 +140,41 @@ func Test5_NewRound_async(t *testing.T) {
 
 	tr := NewRound(player1, player2)
 
-	if tr.Player1 == tr.Player2 {
-		t.Error("two tokens are equal")
-	}
-
-	t.Logf("received round:%+v", tr)
-
-	//test_round.mx.Lock()
-
 	var wg sync.WaitGroup
 	wg.Add(8)
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("scissors")), player1)
+		res := r.Step(tr.saltedHash("my secret", []byte("scissors")), player1)
 		t.Logf("received S1 result:%s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("paper")), player1)
+		res := r.Step(tr.saltedHash("my secret", []byte("paper")), player1)
 		t.Logf("received S1 result:%s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("stone")), player1)
+		res := r.Step(tr.saltedHash("my secret", []byte("stone")), player1)
 		t.Logf("received S1 result:%s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("scissors")), player2)
+		res := r.Step(tr.saltedHash("my secret", []byte("scissors")), player2)
 		t.Logf("received S2 result:%s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("paper")), player2)
+		res := r.Step(tr.saltedHash("my secret", []byte("paper")), player2)
 		t.Logf("received S2 result:%s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := tr.Step(tr.saltedHash("my secret", []byte("stone")), player2)
-		t.Logf("received S2 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := r.Result(player1)
-		t.Logf("received R result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := r.Result(player2)
-		t.Logf("received R result:%s", res)
-	}(tr)
-
-	//test_round.mx.Unlock()
-
-	wg.Wait()
-
-	t.Log(tr)
-
-	wg.Add(8)
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "scissors", player1)
-		t.Logf("received S1 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "paper", player1)
-		t.Logf("received S1 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "stone", player1)
-		t.Logf("received S1 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "scissors", player2)
-		t.Logf("received S2 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "stone", player2)
-		t.Logf("received S2 result:%s", res)
-	}(tr)
-
-	go func(r *Round) {
-		defer wg.Done()
-		res := tr.Disclose("my secret", "paper", player2)
+		res := r.Step(tr.saltedHash("my secret", []byte("stone")), player2)
 		t.Logf("received S2 result:%s", res)
 	}(tr)
 
@@ -271,11 +190,51 @@ func Test5_NewRound_async(t *testing.T) {
 		t.Logf("received R result:%s", res)
 	}(tr)
 
-	//test_round.mx.Unlock()
+	wg.Wait()
+
+	wg.Add(6)
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "scissors", player1)
+		t.Logf("received S1 result:%s", res)
+	}(tr)
+
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "paper", player1)
+		t.Logf("received S1 result:%s", res)
+	}(tr)
+
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "stone", player1)
+		t.Logf("received S1 result:%s", res)
+	}(tr)
+
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "scissors", player2)
+		t.Logf("received S2 result:%s", res)
+	}(tr)
+
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "stone", player2)
+		t.Logf("received S2 result:%s", res)
+	}(tr)
+
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Disclose("my secret", "paper", player2)
+		t.Logf("received S2 result:%s", res)
+	}(tr)
 
 	wg.Wait()
 
-	t.Log(tr)
+	res := tr.Result(player1)
+	t.Logf("received R result:%s", res)
+	res = tr.Result(player2)
+	t.Logf("received R result:%s", res)
 }
 
 func Test6_falsificate(t *testing.T) {
@@ -284,8 +243,7 @@ func Test6_falsificate(t *testing.T) {
 	tr.Bet1 = scissors
 
 	res := tr.Result("u2")
-	t.Logf("received result:%s", res)
-
+	require.Equal(t, "round had been falsificated", res)
 }
 
 func Test7_bidEncodeDecode(t *testing.T) {
@@ -313,20 +271,14 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 	player2 := "player2"
 
 	tr := NewRound(player1, player2)
-
-	t.Logf("received round:%+v", tr)
-
 	res := tr.Step(tr.saltedHash("my secret", []byte("stone")), "player3")
-
-	t.Logf("received result for unauthorized user step:%s", res)
+	require.Equal(t, "unauthorized", res)
 
 	res = tr.Disclose("my secret", "stone", "player3")
-
-	t.Logf("received result for unauthorized user disclose:%s", res)
+	require.Equal(t, "unauthorized", res)
 
 	res = tr.Result("player3")
-
-	t.Logf("received result for unauthorized user:%s", res)
+	require.Equal(t, "unauthorized", res)
 }
 
 func Test9_authorized(t *testing.T) {
