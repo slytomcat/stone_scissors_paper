@@ -65,7 +65,7 @@ func envSet(t testing.TB, files ...string) {
 func Test_serviceMissingENV(t *testing.T) {
 
 	envSet(t)
-	os.Unsetenv("SSP_REDISADDRS")
+	t.Setenv("SSP_REDISADDRS", "")
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
@@ -80,7 +80,7 @@ func Test_serviceMissingENV(t *testing.T) {
 func Test_serviceWrongEnv(t *testing.T) {
 
 	envSet(t)
-	os.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
+	t.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
 
 	timer := time.NewTimer(time.Second)
 	go func(t *time.Timer) {
