@@ -67,14 +67,10 @@ func Test_serviceMissingENV(t *testing.T) {
 	envSet(t)
 	t.Setenv("SSP_REDISADDRS", "")
 
-	timer := time.NewTimer(time.Second)
-	go func(t *time.Timer) {
-		<-t.C
-		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	}(timer)
+	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
+	defer timer.Stop()
 
 	require.Error(t, doMain())
-	timer.Stop()
 }
 
 func Test_serviceWrongEnv(t *testing.T) {
@@ -82,14 +78,10 @@ func Test_serviceWrongEnv(t *testing.T) {
 	envSet(t)
 	t.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
 
-	timer := time.NewTimer(time.Second)
-	go func(t *time.Timer) {
-		<-t.C
-		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-	}(timer)
+	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
+	defer timer.Stop()
 
 	require.Error(t, doMain())
-	timer.Stop()
 }
 
 func Test_gracefulSutdown(t *testing.T) {
