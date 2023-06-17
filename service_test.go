@@ -55,7 +55,7 @@ func stopService(wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
-func envSet(t testing.TB, files ...string) {
+func envSet(t testing.TB) {
 	if os.Getenv("CI") != "" {
 		return
 	}
@@ -69,7 +69,17 @@ func envSet(t testing.TB, files ...string) {
 	}
 }
 
+func resetEnv(t testing.TB) {
+	if os.Getenv("CI") != "" {
+		return
+	}
+	for _, name := range []string{"SSP_HOST_PORT", "SSP_REDIS_PASSWORD", "SSP_REDIS_ADDRS", "SSP_SERVER_SALT"} {
+		t.Setenv(name, "")
+	}
+}
+
 func Test_serviceMissingENV(t *testing.T) {
+	resetEnv(t)
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
@@ -78,7 +88,7 @@ func Test_serviceMissingENV(t *testing.T) {
 }
 
 func Test_serviceWrongEnv(t *testing.T) {
-
+	resetEnv(t)
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
