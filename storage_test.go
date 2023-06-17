@@ -9,7 +9,7 @@ import (
 
 func Test1_Storage(t *testing.T) {
 
-	_, err := NewDatabase(redis.UniversalOptions{Addrs: []string{""}, Password: ""})
+	_, err := NewDatabase(redis.UniversalOptions{Addrs: []string{"wrong.adr:000"}, Password: ""})
 	require.Error(t, err)
 
 	envSet(t) // load .env file for local test environment

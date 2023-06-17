@@ -73,7 +73,7 @@ func Test_serviceMissingENV(t *testing.T) {
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
-	err := doMain(&config{RedisAddrs: []string{""}})
+	err := doMain(&config{RedisAddrs: []string{"wrong.adr:000"}})
 	require.Error(t, err)
 }
 
