@@ -18,10 +18,10 @@ Service configuration is provided through the environment variables.
 
 ### Configuration environment variables
 
-- `SSP_HOSTPORT`: the value in form "host:port" that determines the host and port on which the service have to listen for requests. Default value is: `localhost:8080`
-- `SSP_REDISADDRS`: array of string values in form "host:port" that points to host and port where the Redis server runs.
-- `SSP_REDISPASSWORD`: password for secure connection to Redis database
-- `SSP_SERVERSALT`: server salt for hashes (some random string without spaces)
+- `SSP_HOST_PORT`: the value in form "host:port" that determines the host and port on which the service have to listen for requests. Default value is: `localhost:8080`
+- `SSP_REDIS_ADDRS`: array of string values in form "host:port" that points to host and port where the Redis server runs.
+- `SSP_REDIS_PASSWORD`: password for secure connection to Redis database
+- `SSP_SERVER_SALT`: server salt for hashes (some random string without spaces)
 
 ## Building and running the docker image
 
