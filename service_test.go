@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,8 +36,8 @@ func startService(t *testing.T) *sync.WaitGroup {
 
 	// wait for service start
 	require.Eventually(t, func() bool {
-		// use wrong method to check the mux
-		resp, err := http.Get("http://localhost:8080/new")
+		// use wrong path to check the mux
+		resp, err := http.Post("http://localhost:8080/wrong_new", "application/json", nil)
 		if err == nil {
 			resp.Body.Close()
 			return true
@@ -47,6 +46,7 @@ func startService(t *testing.T) *sync.WaitGroup {
 
 	}, time.Millisecond*500, time.Millisecond*50)
 
+	// wg.Wait()
 	return &wg
 }
 
@@ -56,39 +56,39 @@ func stopService(wg *sync.WaitGroup) {
 }
 
 func envSet(t testing.TB, files ...string) {
-	envs, _ := godotenv.Read(files...)
-	for k, v := range envs {
-		t.Setenv(k, v)
+	if os.Getenv("CI") != "" {
+		return
+	}
+	file, err := os.ReadFile(".env")
+	require.NoError(t, err)
+	for _, l := range strings.Split(string(file), "\n") {
+		env := strings.Split(l, "=")
+		if len(env) == 2 {
+			t.Setenv(strings.Trim(env[0], " \t"), strings.Trim(env[1], " \t"))
+		}
 	}
 }
 
 func Test_serviceMissingENV(t *testing.T) {
-
-	envSet(t)
-	t.Setenv("SSP_REDISADDRS", "")
-
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
-	require.Error(t, doMain())
+	err := doMain(&config{})
+	require.Error(t, err)
 }
 
 func Test_serviceWrongEnv(t *testing.T) {
 
-	envSet(t)
-	t.Setenv("SSP_REDISADDRS", "wrong.addrs:5555")
-
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
-	require.Error(t, doMain())
+	require.Error(t, doMain(&config{RedisAddrs: []string{"wrong.addrs:5555"}}))
 }
 
 func Test_gracefulSutdown(t *testing.T) {
 	envSet(t)
 	wg := startService(t)
 	// graceful sutdown
-	t.Log("Testing graceful shutdown")
 	r, w, _ := os.Pipe()
 	log.SetOutput(w)
 
@@ -101,6 +101,15 @@ func Test_gracefulSutdown(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(buf), "Shutdown finished.")
 	require.Contains(t, string(buf), "http: Server closed")
+}
+
+func request(path string, req []byte) ([]byte, error) {
+	resp, err := http.Post("http://localhost:8080/"+path, "application/json", bytes.NewReader(req))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
 }
 
 func Test_serviceFullGame(t *testing.T) {
@@ -120,20 +129,13 @@ func Test_serviceFullGame(t *testing.T) {
 		Player2: player2,
 	})
 
-	resp, err := http.Post("http://localhost:8080/new", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Logf("responce: %s", data)
+	data, err := request("new", req)
 	res := struct {
 		Round string `json:"round"`
 	}{}
 
 	err = json.Unmarshal(data, &res)
 	require.NoError(t, err)
-
-	t.Logf("Received new round: %v", res)
 
 	// place bets
 	req, _ = json.Marshal(struct {
@@ -146,16 +148,9 @@ func Test_serviceFullGame(t *testing.T) {
 		Bet:    saltedHash("p1 secret", "paper"),
 	})
 
-	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Logf("responce: %s", data)
+	data, err = request("bet", req)
 
 	require.Equal(t, `{"response":"wait for the rival to place its bet"}`, string(data))
-
-	t.Logf("Received step1: %s", data)
 
 	// Bet
 	req, _ = json.Marshal(struct {
@@ -168,15 +163,9 @@ func Test_serviceFullGame(t *testing.T) {
 		Bet:    saltedHash("p2 secret", "stone"),
 	})
 
-	resp, err = http.Post("http://localhost:8080/bet", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	data, err = request("bet", req)
 
-	require.Equal(t, `{"respose":"disclose your bet, please"}`, string(data))
-
-	t.Logf("Received step2: %s", data)
+	require.Equal(t, `{"response":"disclose your bet, please"}`, string(data))
 
 	// result
 	req, _ = json.Marshal(struct {
@@ -187,16 +176,9 @@ func Test_serviceFullGame(t *testing.T) {
 		Player: player1,
 	})
 
-	resp, err = http.Post("http://localhost:8080/result", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Logf("Received result: %s", data)
+	data, err = request("result", req)
 
 	require.Equal(t, `{"response":"disclose your bet, please"}`, string(data))
-
-	t.Logf("Received result: %s", data)
 
 	// Disclose
 	req, _ = json.Marshal(struct {
@@ -211,16 +193,9 @@ func Test_serviceFullGame(t *testing.T) {
 		Bet:    "paper",
 	})
 
-	resp, err = http.Post("http://localhost:8080/disclose", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Logf("responce: %s", data)
+	data, err = request("disclose", req)
 
 	require.Equal(t, `{"response":"wait for your rival to disclose its bet"}`, string(data))
-
-	t.Logf("Received disclose1: %s", data)
 
 	// Disclose
 	req, _ = json.Marshal(struct {
@@ -235,15 +210,9 @@ func Test_serviceFullGame(t *testing.T) {
 		Bet:    "stone",
 	})
 
-	resp, err = http.Post("http://localhost:8080/disclose", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	data, err = request("disclose", req)
 
 	require.Equal(t, `{"response":"You lose: your bet: stone, the rival's bet: paper"}`, string(data))
-
-	t.Logf("Received disclose2: %s", data)
 
 	// result
 	req, _ = json.Marshal(struct {
@@ -254,35 +223,22 @@ func Test_serviceFullGame(t *testing.T) {
 		Player: player1,
 	})
 
-	resp, err = http.Post("http://localhost:8080/result", "application/json", bytes.NewReader(req))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	data, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	t.Logf("Received result: %s", data)
+	data, err = request("result", req)
 
 	require.Equal(t, `{"response":"You won: your bet: paper, the rival's bet: stone"}`, string(data))
-
-	t.Logf("Received result: %s", data)
-
 }
 
 func Test_BadRequests(t *testing.T) {
 	envSet(t) // load .env file for test environment
 	defer stopService(startService(t))
 
-	t.Log("Testing bad requests to /new")
 	badRequest("http://localhost:8080/new", t)
 
-	t.Log("Testing bad requests to /bet")
 	badRequest("http://localhost:8080/bet", t)
 
-	t.Log("Testing bad requests to /disclose")
 	badRequest("http://localhost:8080/disclose", t)
 
-	t.Log("Testing bad requests to /result")
 	badRequest("http://localhost:8080/result", t)
-
 }
 
 func badRequest(url string, t *testing.T) {
@@ -299,23 +255,17 @@ func badRequest(url string, t *testing.T) {
 
 func Test_serviceBadRound(t *testing.T) {
 	envSet(t) // load .env file for test environment
-
 	defer stopService(startService(t))
 
-	t.Log("Testing bad round to /new")
 	badRound("http://localhost:8080/bet", `{"player":"p1","bet":"jasj","round":"not_existing"}`, t)
 
-	t.Log("Testing bad round to /disclose")
 	badRound("http://localhost:8080/disclose", `{"player":"p1","bet":"jasj","secret":"s","round":"not_existing"}`, t)
 
-	t.Log("Testing bad round to /result")
 	badRound("http://localhost:8080/result", `{"player":"p1","round":"not_existing"}`, t)
-
 }
 
 func badRound(url, params string, t *testing.T) {
 	resp, err := http.Post(url, "application/json", strings.NewReader(params))
 	require.NoError(t, err)
 	defer resp.Body.Close()
-
 }

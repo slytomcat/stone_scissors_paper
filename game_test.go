@@ -56,7 +56,7 @@ func Test1_NewRound(t *testing.T) {
 	require.Equal(t, "place Your bet, please", res)
 
 	bet1 := tr.saltedHash("my secret", []byte("paper"))
-	res = tr.Step(bet1, player1)
+	res = tr.Bet(bet1, player1)
 	require.Equal(t, "wait for the rival to place its bet", res)
 
 	require.Equal(t, bet1, tr.HiddenBet1)
@@ -65,7 +65,7 @@ func Test1_NewRound(t *testing.T) {
 	res = tr.Disclose("my secret", "paper", player1)
 	require.Equal(t, "wait for the rival to place its bet", res)
 
-	res = tr.Step(tr.saltedHash("my secret", []byte("stone")), player1)
+	res = tr.Bet(tr.saltedHash("my secret", []byte("stone")), player1)
 	require.Equal(t, "bet has already been placed", res)
 
 	res = tr.Result(player1)
@@ -74,7 +74,7 @@ func Test1_NewRound(t *testing.T) {
 	res = tr.Result(player2)
 	require.Equal(t, "place Your bet, please", res)
 
-	res = tr.Step(tr.saltedHash("my 2 secret", []byte("stone")), player2)
+	res = tr.Bet(tr.saltedHash("my 2 secret", []byte("stone")), player2)
 	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Result(player1)
@@ -114,10 +114,10 @@ func Test2_NewRound(t *testing.T) {
 	res := tr.Result(player1)
 	require.Equal(t, "place Your bet, please", res)
 
-	res = tr.Step(tr.saltedHash("my secret", []byte("paper")), player1)
+	res = tr.Bet(tr.saltedHash("my secret", []byte("paper")), player1)
 	require.Equal(t, "wait for the rival to place its bet", res)
 
-	res = tr.Step(tr.saltedHash("my 2 secret", []byte("paper")), player2)
+	res = tr.Bet(tr.saltedHash("my 2 secret", []byte("paper")), player2)
 	require.Equal(t, "disclose your bet, please", res)
 
 	res = tr.Disclose("my secret", "paper", player1)
@@ -144,50 +144,50 @@ func Test5_NewRound_async(t *testing.T) {
 	wg.Add(8)
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("scissors")), player1)
-		t.Logf("received S1 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("scissors")), player1)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("paper")), player1)
-		t.Logf("received S1 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("paper")), player1)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("stone")), player1)
-		t.Logf("received S1 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("stone")), player1)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("scissors")), player2)
-		t.Logf("received S2 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("scissors")), player2)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("paper")), player2)
-		t.Logf("received S2 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("paper")), player2)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
-		res := r.Step(tr.saltedHash("my secret", []byte("stone")), player2)
-		t.Logf("received S2 result:%s", res)
+		res := r.Bet(tr.saltedHash("my secret", []byte("stone")), player2)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Result(player1)
-		t.Logf("received R result:%s", res)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Result(player2)
-		t.Logf("received R result:%s", res)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	wg.Wait()
@@ -196,45 +196,45 @@ func Test5_NewRound_async(t *testing.T) {
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "scissors", player1)
-		t.Logf("received S1 result:%s", res)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "paper", player1)
-		t.Logf("received S1 result:%s", res)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "stone", player1)
-		t.Logf("received S1 result:%s", res)
+		t.Logf("received S1 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "scissors", player2)
-		t.Logf("received S2 result:%s", res)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "stone", player2)
-		t.Logf("received S2 result:%s", res)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	go func(r *Round) {
 		defer wg.Done()
 		res := r.Disclose("my secret", "paper", player2)
-		t.Logf("received S2 result:%s", res)
+		t.Logf("received S2 result: %s", res)
 	}(tr)
 
 	wg.Wait()
 
 	res := tr.Result(player1)
-	t.Logf("received R result:%s", res)
+	t.Logf("received S1 result: %s", res)
 	res = tr.Result(player2)
-	t.Logf("received R result:%s", res)
+	t.Logf("received S2 result: %s", res)
 }
 
 func Test6_falsificate(t *testing.T) {
@@ -271,7 +271,7 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 	player2 := "player2"
 
 	tr := NewRound(player1, player2)
-	res := tr.Step(tr.saltedHash("my secret", []byte("stone")), "player3")
+	res := tr.Bet(tr.saltedHash("my secret", []byte("stone")), "player3")
 	require.Equal(t, "unauthorized", res)
 
 	res = tr.Disclose("my secret", "stone", "player3")

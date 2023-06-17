@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -14,12 +13,10 @@ type testDB struct {
 }
 
 func (d *testDB) Store(r *Round) error {
-	fmt.Printf("stored: %+v\n", r)
 	return nil
 }
 
 func (d *testDB) Retrieve(key string) (*Round, error) {
-	fmt.Printf("retrieved: %s", key)
 	if d.Err {
 		return nil, errors.New("test error")
 	}
@@ -33,20 +30,18 @@ func Test_all(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 	r := NewRound(player1, player2)
-	t.Logf("%+v\n", r)
 
 	err := c.Store(r)
 	require.NoError(t, err)
 
-	res := r.Step(r.saltedHash("my secret", []byte("paper")), player1)
+	res := r.Bet(r.saltedHash("my secret", []byte("paper")), player1)
 
 	require.Equal(t, "wait for the rival to place its bet", res)
 
 	r1, err := c.Retrieve(r.ID)
 	require.NoError(t, err)
 
-	t.Logf("%+v\n", r)
-	_ = r1.Step(r.saltedHash("my secret", []byte("paper")), player1)
+	_ = r1.Bet(r.saltedHash("my secret", []byte("paper")), player1)
 
 	time.Sleep(time.Second)
 
@@ -60,8 +55,5 @@ func Test_all(t *testing.T) {
 	r2, err := c.Retrieve(r.ID)
 	require.NoError(t, err)
 
-	t.Logf("%+v\n", r)
-
 	require.NotEqual(t, r2.Bet1, stone)
-
 }

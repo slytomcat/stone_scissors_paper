@@ -4,19 +4,18 @@ import (
 	"testing"
 
 	"github.com/go-redis/redis"
-	"github.com/kelseyhightower/envconfig"
 	"github.com/stretchr/testify/require"
 )
 
 func Test1_Storage(t *testing.T) {
 
-	config := configT{}
+	config := &config{}
 	_, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	require.Error(t, err)
 
-	envSet(t) // load .env file for test environment
+	envSet(t) // load .env file for local test environment
 
-	require.NoError(t, envconfig.Process("SSP", &config))
+	config, err = newConfig()
 
 	db, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	require.NoError(t, err)
@@ -28,8 +27,6 @@ func Test1_Storage(t *testing.T) {
 	rr, _ := db.Retrieve(r.ID)
 
 	require.Equal(t, rr, r)
-
-	t.Logf("Stored: %+v \n retrieved: %+v \n", r, rr)
 
 	_, err = db.Retrieve("Non-existing_key")
 	require.Error(t, err)

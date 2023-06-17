@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 const (
@@ -34,7 +34,7 @@ var (
 	}
 )
 
-// Round is a sigle raund game provider
+// Round is a single round game provider
 type Round struct {
 	mx         sync.RWMutex // guard for async updates
 	ID         string       `json:"id"`         // round id
@@ -51,16 +51,7 @@ type Round struct {
 // NewRound returns new initialized Round
 func NewRound(player1, player2 string) *Round {
 	r := &Round{
-		mx:         sync.RWMutex{},
-		ID:         uuid.NewV4().String(),
-		Player1:    "",
-		Player2:    "",
-		HiddenBet1: "",
-		HiddenBet2: "",
-		Bet1:       nothing,
-		Bet2:       nothing,
-		Winner:     nobody,
-		Signature:  "",
+		ID: uuid.NewString(),
 	}
 
 	r.Player1 = r.roundSaltedHash(player1)
@@ -80,7 +71,7 @@ func (r *Round) saltedHash(salt string, obj []byte) string {
 
 func (r *Round) roundSaltedHash(obj interface{}) string {
 
-	salt := config.ServerSalt + r.ID // make individual salt for each round object
+	salt := serverSalt + r.ID // make individual salt for each round object
 
 	bObj, err := json.Marshal(obj)
 	if err != nil {
@@ -110,8 +101,8 @@ func (r *Round) check(player string) string {
 	return ""
 }
 
-// Step makes the user's hiden bid
-func (r *Round) Step(hiddenBet, player string) string {
+// Bet makes the user's hidden bid
+func (r *Round) Bet(hiddenBet, player string) string {
 	if res := r.check(player); res != "" {
 		return res
 	}

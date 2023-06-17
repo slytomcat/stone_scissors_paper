@@ -13,37 +13,29 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/kelseyhightower/envconfig"
 )
 
-type configT struct {
-	HostPort      string   `default:"localhost:8080"`
-	RedisAddrs    []string `required:"true"`
-	ServerSalt    string   `required:"true"`
-	RedisPassword string
-}
-
 var (
-	db      Database
-	version = "test"
-	config  = configT{}
+	db         Database
+	version    = "test_version"
+	serverSalt = ""
 )
 
 func main() {
-	err := doMain()
+	cfg, err := newConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = doMain(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func doMain() error {
+func doMain(cfg *config) error {
+	serverSalt = cfg.ServerSalt
 
-	err := envconfig.Process("SSP", &config)
-	if err != nil {
-		return err
-	}
-
-	d, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
+	d, err := NewDatabase(redis.UniversalOptions{Addrs: cfg.RedisAddrs, Password: cfg.RedisPassword})
 	if err != nil {
 		return err
 	}
@@ -57,12 +49,12 @@ func doMain() error {
 	mux.HandleFunc("/result", Result)
 
 	server := http.Server{
-		Addr:    config.HostPort,
+		Addr:    cfg.HostPort,
 		Handler: mux,
 	}
 
 	log.Printf("Stone Scissors Paper game service v.%s\n", version)
-	log.Printf("Starting service at %s\n", config.HostPort)
+	log.Printf("Starting service at %s\n", cfg.HostPort)
 
 	go func() { log.Println(server.ListenAndServe()) }()
 
@@ -96,12 +88,12 @@ func getInput(req *http.Request, input interface{}) error {
 
 	buf, err := io.ReadAll(req.Body)
 	if err != nil {
-		return fmt.Errorf("request body reading error: %W", err)
+		return fmt.Errorf("request body reading error: %v", err)
 	}
 
 	err = json.Unmarshal(buf, input)
 	if err != nil {
-		return fmt.Errorf("request body parsing error: %W", err)
+		return fmt.Errorf("request body parsing error: %v", err)
 	}
 
 	return nil
@@ -113,7 +105,7 @@ func sendResponse(w http.ResponseWriter, response interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	_, err := w.Write(resp)
 	if err != nil {
-		log.Printf("respone writing error: %v", err)
+		log.Printf("response writing error: %v", err)
 	}
 }
 
@@ -152,7 +144,7 @@ func New(w http.ResponseWriter, req *http.Request) {
 		Round: round.ID,
 	})
 
-	log.Printf("new round: %s", round.ID)
+	log.Printf("new round: %s %s vs %s", round.ID, input.Player1, input.Player2)
 }
 
 // Bet realizes the request for the new bet of user
@@ -183,7 +175,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res := round.Step(input.Bet, input.Player)
+	res := round.Bet(input.Bet, input.Player)
 
 	err = db.Store(round)
 	if err != nil {
@@ -193,11 +185,11 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 	}
 
 	sendResponse(w, struct {
-		Response string `json:"respose"`
+		Response string `json:"response"`
 	}{
 		Response: res,
 	})
-	log.Printf("round: %s - bet result: %s", round.ID, res)
+	log.Printf("round: %s:%s - bet result: %s", round.ID, input.Player, res)
 }
 
 // Disclose realizes the request for the disclose bet of user
@@ -239,11 +231,11 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 	}
 
 	sendResponse(w, struct {
-		Respose string `json:"respose"`
+		Response string `json:"response"`
 	}{
-		Respose: res,
+		Response: res,
 	})
-	log.Printf("round: %s - disclose result: %s", round.ID, res)
+	log.Printf("round: %s:%s - disclose result: %s", round.ID, input.Player, res)
 }
 
 // Result realizes the request for result of round
@@ -281,5 +273,5 @@ func Result(w http.ResponseWriter, req *http.Request) {
 	}{
 		Response: res,
 	})
-	log.Printf("round: %s - result: %s", round.ID, res)
+	log.Printf("round: %s:%s - result: %s", round.ID, input.Player, res)
 }
