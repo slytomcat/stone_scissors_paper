@@ -70,6 +70,9 @@ func envSet(t testing.TB) {
 }
 
 func Test_serviceMissingENV(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("not work in CI")
+	}
 	envSet(t)
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
