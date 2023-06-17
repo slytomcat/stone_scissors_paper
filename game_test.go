@@ -10,9 +10,8 @@ import (
 func Test0_Hash(t *testing.T) {
 
 	player1 := "player1"
-	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
 
 	shData := tr.saltedHash("my secret", []byte("stone"))       // "my secret", []byte("paper")
 	shDataHash := "L64zOtDB4yPHkd9ieLH8ghGdzDVn-_2X17Oo2bjDE64" // "ukpgoQizajh7pHqNQM4lWCLxnbwtScUQLHhiQzT5u5Y"
@@ -21,8 +20,7 @@ func Test0_Hash(t *testing.T) {
 	shDataHash = tr.roundSaltedHash(player1)
 	require.Equal(t, shDataHash, tr.Player1)
 
-	shDataHash = tr.roundSaltedHash(player2)
-	require.Equal(t, shDataHash, tr.Player2)
+	require.Equal(t, "", tr.Player2)
 
 	tr.ID = "e500c6d1-93b5-4bd9-8ceb-a4a87fe60cd5" // fixed ID for predictable result of roundSaltedHash
 
@@ -36,8 +34,15 @@ func Test1_NewRound(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
+	rs := tr.Signature
+	res := tr.Attach(player1)
+	require.Equal(t, "You can't play with yourself", res)
+
+	res = tr.Attach(player2)
 	require.NotEqual(t, tr.Player1, tr.Player2)
+	require.NotEqual(t, rs, tr.Signature)
+	require.Equal(t, "place Your bet, please", res)
 	p1 := tr.roundSaltedHash(player1)
 	p2 := tr.roundSaltedHash(player2)
 	storedSig := tr.Signature
@@ -52,8 +57,11 @@ func Test1_NewRound(t *testing.T) {
 	tr.Signature = storedSig
 	tr.ID = storedID
 
-	res := tr.Result(player1)
+	res = tr.Result(player1)
 	require.Equal(t, "place Your bet, please", res)
+
+	res = tr.Attach("another_player")
+	require.Equal(t, "this round is already full", res)
 
 	bet1 := tr.saltedHash("my secret", []byte("paper"))
 	res = tr.Bet(bet1, player1)
@@ -110,8 +118,11 @@ func Test2_NewRound(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
 	res := tr.Result(player1)
+	require.Equal(t, "wait for rival attach", res)
+
+	res = tr.Attach(player2)
 	require.Equal(t, "place Your bet, please", res)
 
 	res = tr.Bet(tr.saltedHash("my secret", []byte("paper")), player1)
@@ -138,9 +149,27 @@ func Test5_NewRound_async(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
 
 	var wg sync.WaitGroup
+	wg.Add(3)
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Attach(player2)
+		t.Logf("received S1 result: %s", res)
+	}(tr)
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Attach(player1)
+		t.Logf("received S1 result: %s", res)
+	}(tr)
+	go func(r *Round) {
+		defer wg.Done()
+		res := r.Attach(player2)
+		t.Logf("received S1 result: %s", res)
+	}(tr)
+	wg.Wait()
+
 	wg.Add(8)
 	go func(r *Round) {
 		defer wg.Done()
@@ -238,7 +267,7 @@ func Test5_NewRound_async(t *testing.T) {
 }
 
 func Test6_falsificate(t *testing.T) {
-	tr := NewRound("u1", "u2")
+	tr := NewRound("u1")
 
 	tr.Bet1 = scissors
 
@@ -247,7 +276,7 @@ func Test6_falsificate(t *testing.T) {
 }
 
 func Test7_bidEncodeDecode(t *testing.T) {
-	tr := NewRound("u1", "u2")
+	tr := NewRound("u1")
 
 	if tr.betDecode(stone) != "stone" ||
 		tr.betDecode(scissors) != "scissors" ||
@@ -270,7 +299,8 @@ func Test8_NewRoundUnauthorized(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
+	_ = tr.Attach(player2)
 	res := tr.Bet(tr.saltedHash("my secret", []byte("stone")), "player3")
 	require.Equal(t, "unauthorized", res)
 
@@ -285,18 +315,13 @@ func Test9_authorized(t *testing.T) {
 	player1 := "player1"
 	player2 := "player2"
 
-	tr := NewRound(player1, player2)
+	tr := NewRound(player1)
+	_ = tr.Attach(player2)
 
 	err := tr.authorized(player1)
-	if err != nil {
-		t.Error("first player unauthorized")
-	}
+	require.NoError(t, err)
 	err = tr.authorized(player2)
-	if err != nil {
-		t.Error("second player unauthorized")
-	}
+	require.NoError(t, err)
 	err = tr.authorized("player3")
-	if err == nil {
-		t.Error("unauthorized user is authorized")
-	}
+	require.Error(t, err)
 }

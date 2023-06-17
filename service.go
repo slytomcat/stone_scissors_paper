@@ -44,6 +44,7 @@ func doMain(cfg *config) error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/new", New)
+	mux.HandleFunc("/attach", Attach)
 	mux.HandleFunc("/bet", Bet)
 	mux.HandleFunc("/disclose", Disclose)
 	mux.HandleFunc("/result", Result)
@@ -113,8 +114,7 @@ func sendResponse(w http.ResponseWriter, response interface{}) {
 func New(w http.ResponseWriter, req *http.Request) {
 
 	input := struct {
-		Player1 string `json:"player1"`
-		Player2 string `json:"player2"`
+		Player string `json:"player"`
 	}{}
 	if err := getInput(req, &input); err != nil {
 		log.Println(err)
@@ -122,19 +122,18 @@ func New(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if input.Player1 == "" || input.Player2 == "" {
+	if input.Player == "" {
 		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
 		log.Println(errMsg)
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
-	round := NewRound(input.Player1, input.Player2)
+	round := NewRound(input.Player)
 
 	err := db.Store(round)
 	if err != nil {
-		log.Printf("Round store error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round store error", err, w)
 		return
 	}
 
@@ -144,7 +143,50 @@ func New(w http.ResponseWriter, req *http.Request) {
 		Round: round.ID,
 	})
 
-	log.Printf("new round: %s %s vs %s", round.ID, input.Player1, input.Player2)
+	log.Printf("new round: %s started by %s", round.ID, input.Player)
+}
+
+// Attach realizes the request for attach to existing round
+func Attach(w http.ResponseWriter, req *http.Request) {
+	input := struct {
+		Round  string `json:"round"`
+		Player string `json:"player"`
+	}{}
+
+	if err := getInput(req, &input); err != nil {
+		log.Print(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if input.Round == "" || input.Player == "" {
+		errMsg := fmt.Sprintf("Some mandatory fields are missed: %+v", input)
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	round, err := db.Retrieve(input.Round)
+	if err != nil {
+		storageError("Round retrieve error", err, w)
+		return
+	}
+
+	res := round.Attach(input.Player)
+
+	err = db.Store(round)
+	if err != nil {
+		storageError("Round store error", err, w)
+		return
+	}
+
+	sendResponse(w, struct {
+		Response string `json:"response"`
+	}{
+		Response: res,
+	})
+	log.Printf("round: %s: %s attached", round.ID, input.Player)
+
 }
 
 // Bet realizes the request for the new bet of user
@@ -170,8 +212,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
-		log.Printf("Round retrieve error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round retrieve error", err, w)
 		return
 	}
 
@@ -179,8 +220,7 @@ func Bet(w http.ResponseWriter, req *http.Request) {
 
 	err = db.Store(round)
 	if err != nil {
-		log.Printf("Round store error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round store error", err, w)
 		return
 	}
 
@@ -216,8 +256,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
-		log.Printf("Round retrieve error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round retrieve error", err, w)
 		return
 	}
 
@@ -225,8 +264,7 @@ func Disclose(w http.ResponseWriter, req *http.Request) {
 
 	err = db.Store(round)
 	if err != nil {
-		log.Printf("Round store error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round store error", err, w)
 		return
 	}
 
@@ -261,8 +299,7 @@ func Result(w http.ResponseWriter, req *http.Request) {
 
 	round, err := db.Retrieve(input.Round)
 	if err != nil {
-		log.Printf("Round retrieve error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		storageError("Round retrieve error", err, w)
 		return
 	}
 
@@ -274,4 +311,9 @@ func Result(w http.ResponseWriter, req *http.Request) {
 		Response: res,
 	})
 	log.Printf("round: %s:%s - result: %s", round.ID, input.Player, res)
+}
+
+func storageError(msg string, err error, w http.ResponseWriter) {
+	log.Printf("%s: %v", msg, err)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
 }

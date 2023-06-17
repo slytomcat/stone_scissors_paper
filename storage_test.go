@@ -19,7 +19,7 @@ func Test1_Storage(t *testing.T) {
 	db, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	require.NoError(t, err)
 
-	r := NewRound("u1", "u2")
+	r := NewRound("u1")
 
 	require.NoError(t, db.Store(r))
 

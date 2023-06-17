@@ -36,8 +36,8 @@ func startService(t *testing.T) *sync.WaitGroup {
 
 	// wait for service start
 	require.Eventually(t, func() bool {
-		// use wrong path to check the mux
-		resp, err := http.Post("http://localhost:8080/wrong_new", "application/json", nil)
+		// use wrong method to check the mux
+		resp, err := http.Get("http://localhost:8080/wrong_new")
 		if err == nil {
 			resp.Body.Close()
 			return true
@@ -114,11 +114,9 @@ func Test_serviceFullGame(t *testing.T) {
 	// New
 
 	req, _ := json.Marshal(struct {
-		Player1 string `json:"player1"`
-		Player2 string `json:"player2"`
+		Player string `json:"player"`
 	}{
-		Player1: player1,
-		Player2: player2,
+		Player: player1,
 	})
 
 	data, err := request("new", req)
@@ -128,6 +126,18 @@ func Test_serviceFullGame(t *testing.T) {
 
 	err = json.Unmarshal(data, &res)
 	require.NoError(t, err)
+
+	req, _ = json.Marshal(struct {
+		Round  string `json:"round"`
+		Player string `json:"player"`
+	}{
+		Round:  res.Round,
+		Player: player2,
+	})
+
+	data, err = request("attach", req)
+
+	require.Equal(t, `{"response":"place Your bet, please"}`, string(data))
 
 	// place bets
 	req, _ = json.Marshal(struct {
@@ -226,6 +236,8 @@ func Test_BadRequests(t *testing.T) {
 
 	badRequest("http://localhost:8080/new", t)
 
+	badRequest("http://localhost:8080/attach", t)
+
 	badRequest("http://localhost:8080/bet", t)
 
 	badRequest("http://localhost:8080/disclose", t)
@@ -248,6 +260,8 @@ func badRequest(url string, t *testing.T) {
 func Test_serviceBadRound(t *testing.T) {
 	envSet(t) // load .env file for test environment
 	defer stopService(startService(t))
+
+	badRound("http://localhost:8080/attach", `{"player":"p1","round":"not_existing"}`, t)
 
 	badRound("http://localhost:8080/bet", `{"player":"p1","bet":"jasj","round":"not_existing"}`, t)
 

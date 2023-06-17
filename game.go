@@ -36,28 +36,26 @@ var (
 
 // Round is a single round game provider
 type Round struct {
-	mx         sync.RWMutex // guard for async updates
-	ID         string       `json:"id"`         // round id
-	Player1    string       `json:"player1"`    // hash of player1's token
-	Player2    string       `json:"player2"`    // hash of player2's token
-	HiddenBet1 string       `json:"hiddenbet1"` // hidden bet of player1
-	HiddenBet2 string       `json:"hiddenbet2"` // hidden bet of player2
-	Bet1       int          `json:"bet1"`       // open bet of player1
-	Bet2       int          `json:"bet2"`       // open bet of player2
-	Winner     int          `json:"winner"`     // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
-	Signature  string       `json:"signature"`  // round signature (calculated without itself)
+	mx         sync.Mutex // guard for async updates
+	ID         string     `json:"id"`         // round id
+	Player1    string     `json:"player1"`    // hash of player1's token
+	Player2    string     `json:"player2"`    // hash of player2's token
+	HiddenBet1 string     `json:"hiddenbet1"` // hidden bet of player1
+	HiddenBet2 string     `json:"hiddenbet2"` // hidden bet of player2
+	Bet1       int        `json:"bet1"`       // open bet of player1
+	Bet2       int        `json:"bet2"`       // open bet of player2
+	Winner     int        `json:"winner"`     // 'nobody' - not all bids done, 'first'|'second'|'draw' - winner selection when all bids done
+	Signature  string     `json:"signature"`  // round signature (calculated without itself)
 }
 
-// NewRound returns new initialized Round
-func NewRound(player1, player2 string) *Round {
+// NewRound returns new initialized open Round
+func NewRound(player string) *Round {
 	r := &Round{
 		ID: uuid.NewString(),
 	}
 
-	r.Player1 = r.roundSaltedHash(player1)
-	r.Player2 = r.roundSaltedHash(player2)
-	r.Signature = r.roundSaltedHash(r)
-
+	r.Player1 = r.roundSaltedHash(player)
+	r.reSing()
 	return r
 }
 
@@ -83,9 +81,6 @@ func (r *Round) roundSaltedHash(obj interface{}) string {
 
 func (r *Round) check(player string) string {
 
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
 	// clear Signature to calculate round hash without it
 	sign := r.Signature
 	defer func() { r.Signature = sign }()
@@ -101,17 +96,38 @@ func (r *Round) check(player string) string {
 	return ""
 }
 
+func (r *Round) reSing() {
+	r.Signature = ""
+	r.Signature = r.roundSaltedHash(r)
+}
+
+// Attach new player to existing round
+func (r *Round) Attach(player string) string {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+	if r.Player2 != "" {
+		return "this round is already full"
+	}
+	hPlayer := r.roundSaltedHash(player)
+	if r.Player1 == hPlayer {
+		return "You can't play with yourself"
+	}
+	r.Player2 = hPlayer
+	r.reSing()
+	return r.result(player)
+}
+
 // Bet makes the user's hidden bid
 func (r *Round) Bet(hiddenBet, player string) string {
+	// data racing prevention
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
 	if res := r.check(player); res != "" {
 		return res
 	}
 
 	shPlayer := r.roundSaltedHash(player)
-
-	// data racing prevention
-	r.mx.Lock()
-	defer r.mx.Unlock()
 
 	if r.Player1 == shPlayer && r.HiddenBet1 != "" ||
 		r.Player2 == shPlayer && r.HiddenBet2 != "" {
@@ -125,21 +141,19 @@ func (r *Round) Bet(hiddenBet, player string) string {
 	}
 
 	// recalculate signature
-	r.Signature = ""
-	r.Signature = r.roundSaltedHash(r)
-
+	r.reSing()
 	return r.result(player)
 }
 
 // Disclose used to disclose the user's steps
 func (r *Round) Disclose(secret, bet, player string) string {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	if res := r.check(player); res != "" {
 		return res
 	}
 
 	if r.HiddenBet1 == "" || r.HiddenBet2 == "" {
-		r.mx.RLock()
-		defer r.mx.RUnlock()
 		return r.result(player)
 	}
 
@@ -151,9 +165,6 @@ func (r *Round) Disclose(secret, bet, player string) string {
 		shPlayer == r.Player2 && r.HiddenBet2 != shBet {
 		return "Your bet is incorrect"
 	}
-
-	r.mx.Lock()
-	defer r.mx.Unlock()
 
 	if shPlayer == r.Player1 {
 		r.Bet1 = r.betEncode(bet)
@@ -167,21 +178,17 @@ func (r *Round) Disclose(secret, bet, player string) string {
 
 	}
 	// recalculate signature
-	r.Signature = ""
-	r.Signature = r.roundSaltedHash(r)
-
+	r.reSing()
 	return r.result(player)
-
 }
 
 // Result returns the round result
 func (r *Round) Result(player string) string {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	if res := r.check(player); res != "" {
 		return res
 	}
-	// data racing prevention
-	r.mx.RLock()
-	defer r.mx.RUnlock()
 	return r.result(player)
 }
 
@@ -189,21 +196,27 @@ func (r *Round) Result(player string) string {
 // It have to be called after mx.Lock() or mx.RLock()
 func (r *Round) result(player string) string {
 
-	hiddenBet, bet := "", nothing
-	rHiddenBet, rBet := "", nothing
-	cPlayer := 0
+	var rival, hiddenBet, rHiddenBet string
+	var bet, rBet, cPlayer int
+
 	if r.Player1 == r.roundSaltedHash(player) {
+		rival = r.Player2
 		hiddenBet = r.HiddenBet1
 		bet = r.Bet1
 		rHiddenBet = r.HiddenBet2
 		rBet = r.Bet2
 		cPlayer = first
 	} else {
+		rival = r.Player1
 		hiddenBet = r.HiddenBet2
 		bet = r.Bet2
 		rHiddenBet = r.HiddenBet1
 		rBet = r.Bet1
 		cPlayer = second
+	}
+
+	if rival == "" {
+		return "wait for rival attach"
 	}
 
 	if hiddenBet == "" {
