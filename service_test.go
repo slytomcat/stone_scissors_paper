@@ -70,21 +70,17 @@ func envSet(t testing.TB) {
 }
 
 func Test_serviceMissingENV(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("not work in CI")
-	}
-	envSet(t)
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
-	err := doMain(&config{})
+	err := doMain(&config{RedisAddrs: []string{""}})
 	require.Error(t, err)
 }
 
-func Test_gracefulSutdown(t *testing.T) {
+func Test_gracefulShutdown(t *testing.T) {
 	envSet(t)
 	wg := startService(t)
-	// graceful sundown
+	// graceful shutdown
 	r, w, _ := os.Pipe()
 	log.SetOutput(w)
 

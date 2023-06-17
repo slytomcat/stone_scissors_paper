@@ -9,13 +9,12 @@ import (
 
 func Test1_Storage(t *testing.T) {
 
-	config := &config{}
-	_, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
+	_, err := NewDatabase(redis.UniversalOptions{Addrs: []string{""}, Password: ""})
 	require.Error(t, err)
 
 	envSet(t) // load .env file for local test environment
 
-	config, err = newConfig()
+	config, err := newConfig()
 
 	db, err := NewDatabase(redis.UniversalOptions{Addrs: config.RedisAddrs, Password: config.RedisPassword})
 	require.NoError(t, err)
