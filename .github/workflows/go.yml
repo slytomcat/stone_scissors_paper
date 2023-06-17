@@ -32,9 +32,9 @@ jobs:
       - name: Test
         run: go test -v --race ./...
         env:
-          SSP_HOSTPORT: localhost:8080
-          SSP_REDISADDR: localhost:6379
-          SSP_SERVERSALT: 12345
+          SSP_HOST_PORT: localhost:8080
+          SSP_REDIS_ADDRS: localhost:6379
+          SSP_SERVER_SALT: 12345
   build:
     needs: test
     runs-on: ubuntu-latest

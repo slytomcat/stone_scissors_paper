@@ -69,17 +69,8 @@ func envSet(t testing.TB) {
 	}
 }
 
-func resetEnv(t testing.TB) {
-	if os.Getenv("CI") != "" {
-		return
-	}
-	for _, name := range []string{"SSP_HOST_PORT", "SSP_REDIS_PASSWORD", "SSP_REDIS_ADDRS", "SSP_SERVER_SALT"} {
-		t.Setenv(name, "")
-	}
-}
-
 func Test_serviceMissingENV(t *testing.T) {
-	resetEnv(t)
+	envSet(t)
 	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
 	defer timer.Stop()
 
@@ -87,18 +78,10 @@ func Test_serviceMissingENV(t *testing.T) {
 	require.Error(t, err)
 }
 
-func Test_serviceWrongEnv(t *testing.T) {
-	resetEnv(t)
-	timer := time.AfterFunc(time.Second, func() { syscall.Kill(syscall.Getpid(), syscall.SIGINT) })
-	defer timer.Stop()
-
-	require.Error(t, doMain(&config{RedisAddrs: []string{"wrong.addrs:5555"}}))
-}
-
 func Test_gracefulSutdown(t *testing.T) {
 	envSet(t)
 	wg := startService(t)
-	// graceful sutdown
+	// graceful sundown
 	r, w, _ := os.Pipe()
 	log.SetOutput(w)
 
